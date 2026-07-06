@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Family-only settings (not for grandma). Plain English labels. -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FBF3E8"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:focusableInTouchMode="true"><!-- steals initial focus so the keyboard doesn't auto-pop -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="సెట్టింగ్‌లు · Settings"
+            android:textColor="#402A1C"
+            android:textSize="30sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="కుటుంబం కోసం మాత్రమే"
+            android:textColor="#8A7361"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="ఫోన్ కనుక్కునే రహస్య పదం · Find-phone code word"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Text this word to her phone and it will ring loudly, even on silent."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/codeWord"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="FINDME"
+            android:inputType="text"
+            android:textColor="#402A1C" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="కుటుంబ నంబర్లు · Family numbers (one per line)"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Only these numbers can ring the phone with the code word. Leave empty to allow anyone (less safe)."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/familyNumbers"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="top"
+            android:hint="+9199xxxxxxxx"
+            android:inputType="textMultiLine|phone"
+            android:minLines="2"
+            android:textColor="#402A1C" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="మాట్లాడు AI తాళం · AI key (OpenRouter)"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Paste a free key from openrouter.ai/keys. Stored only on this phone. The Talk button uses it when internet is available."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/aiKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="sk-or-v1-..."
+            android:inputType="textNoSuggestions"
+            android:textColor="#402A1C" />
+
+        <Button
+            android:id="@+id/save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:paddingVertical="16dp"
+            android:text="Save"
+            android:textSize="20sp" />
+
+    </LinearLayout>
+</ScrollView>

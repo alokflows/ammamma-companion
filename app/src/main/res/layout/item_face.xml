@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One face button in the photo-dial grid. Populated from a Contact in code.
+     The whole card is tappable and places the call. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@drawable/card_face"
+    android:clickable="true"
+    android:focusable="true"
+    android:paddingTop="16dp"
+    android:paddingBottom="14dp"
+    android:elevation="3dp">
+
+    <!-- avatar: a circle whose ring color is set per-person in code -->
+    <FrameLayout
+        android:id="@+id/avatarFrame"
+        android:layout_width="84dp"
+        android:layout_height="84dp">
+
+        <ImageView
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_person"
+            android:contentDescription="@null" />
+
+        <!-- small green "call" badge (hidden when no number is set yet) -->
+        <ImageView
+            android:id="@+id/callBadge"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|end"
+            android:background="@drawable/calldot"
+            android:padding="5dp"
+            android:src="@drawable/ic_call"
+            android:contentDescription="@null" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="#402A1C"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        tools:ignore="HardcodedText"
+        xmlns:tools="http://schemas.android.com/tools" />
+
+    <TextView
+        android:id="@+id/rel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#8A7361"
+        android:textSize="13sp" />
+
+    <!-- Always-visible hint on cards with no number yet (not just a transient toast). -->
+    <TextView
+        android:id="@+id/noNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="నంబర్ లేదు"
+        android:textColor="#B0857A"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+</LinearLayout>

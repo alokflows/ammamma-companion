@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#2A1A0F"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="మాట్లాడు"
+            android:textColor="#FFF4E8"
+            android:textSize="30sp"
+            android:textStyle="bold" />
+
+        <!-- The AI's answer, shown large (and spoken aloud when TTS is available). -->
+        <TextView
+            android:id="@+id/reply"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:minHeight="72dp"
+            android:text=""
+            android:textColor="#FFF4E8"
+            android:textSize="24sp" />
+
+        <!-- Big tappable mic (voice, on her real phone) -->
+        <FrameLayout
+            android:id="@+id/micButton"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_marginTop="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="@drawable/mic_circle">
+
+            <ImageView
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_mic"
+                android:contentDescription="@null" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="నొక్కి మాట్లాడండి లేదా టైప్ చేయండి"
+            android:textColor="#D9C6B4"
+            android:textSize="18sp" />
+
+        <!-- Type-to-talk (works everywhere, incl. the emulator on your laptop) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/input"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="ఇక్కడ టైప్ చేయండి"
+                android:textColorHint="#9C8973"
+                android:textColor="#FFF4E8"
+                android:inputType="textShortMessage"
+                android:imeOptions="actionSend" />
+
+            <Button
+                android:id="@+id/send"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="పంపు"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:paddingHorizontal="40dp"
+            android:paddingVertical="14dp"
+            android:text="మూసివేయి"
+            android:textSize="20sp" />
+
+    </LinearLayout>
+</ScrollView>

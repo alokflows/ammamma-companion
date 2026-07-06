@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Talk companion: reach the AI (online only) and hear her voice. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Foreground service keeps the companion alive on ColorOS, which kills
+         ordinary background apps aggressively. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Lets the dismiss card wake the screen so she never misses a warning. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- One-tap calling from a face button. -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- Announce WHO is calling (read incoming call state + number). -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <!-- Find-my-phone: react to a family SMS and buzz loudly. -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Grandpa finder: text the phone's GPS location back to the family sender. -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- The giant dismiss card. Its own task, shows over the lock screen,
+             transparent to the launcher (no icon of its own). -->
+        <activity
+            android:name=".AlertActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showOnLockScreen="true"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <!-- Live charging screen: percentage, health, time-to-full, spoken aloud. -->
+        <activity
+            android:name=".ChargingActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showOnLockScreen="true"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <activity
+            android:name=".TalkActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".FindPhoneActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showOnLockScreen="true"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <!-- Announces who is calling when the phone rings. -->
+        <receiver
+            android:name=".CallReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PHONE_STATE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Listens for the family "find my phone" SMS. Protected so only the
+             system telephony stack can deliver to it. -->
+        <receiver
+            android:name=".FindPhoneReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".CompanionService"
+            android:exported="false" />
+
+        <!-- Texts the phone's GPS location back when find-my-phone fires. -->
+        <service
+            android:name=".LocationReplyService"
+            android:exported="false" />
+
+    </application>
+</manifest>
