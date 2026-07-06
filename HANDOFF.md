@@ -109,6 +109,11 @@ Package `com.ammamma.companion` at `/Users/megha/AmmammaCompanion/app/src/main`.
       reply → TTS. AI round-trip VERIFIED in-app on emulator (got warm Telugu reply from Gemma-4).
       STT (SpeechRecognizer te-IN) + TTS need the real phone (emulator has no speech engine).
 - [x] Home-screen design published: https://claude.ai/code/artifact/5bf74497-37bf-4525-b712-2ec990e03669
+- [x] **App icon**: adaptive icon, small white Apple-style heart on a rose/pink gradient.
+- [x] **First-run permissions**: MainActivity requests all 6 runtime perms at once + battery-
+      optimization exemption (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) for persistence.
+- [x] **Caller demo** button in Settings — speaks "<name> ఫోన్ చేస్తున్నారు" on demand (offline).
+- [x] **Shipped: GitHub v0.2** release (signed APK). Repo https://github.com/alokflows/ammamma-companion
 
 ### Usability test — "Kamala" (grandmother sub-agent, no context) — 2026-07-06
 Loved the call flow (one tap → big red hang-up). Confusions found → fixes:
