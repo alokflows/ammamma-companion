@@ -113,6 +113,14 @@ Package `com.ammamma.companion` at `/Users/megha/AmmammaCompanion/app/src/main`.
 - [x] **First-run permissions**: MainActivity requests all 6 runtime perms at once + battery-
       optimization exemption (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) for persistence.
 - [x] **Caller demo** button in Settings — speaks "<name> ఫోన్ చేస్తున్నారు" on demand (offline).
+- [x] **Weather (Telugu), offline-key-free** (`Weather.kt`): when she asks about rain/heat/cold
+      (`isWeatherQuestion` — Telugu + English keywords), `TalkActivity` fetches live Huzurabad
+      forecast from **Open-Meteo (free, NO API key)** and passes it as `AiBrain.ask(extraContext=…)`
+      so the model phrases it warmly in Telugu. Fetch fails silently → normal chat, never an error.
+      VERIFIED on emulator: asking "rain" fired the trigger and logged real facts
+      (`Weather facts: … rain 73% today, 57% tomorrow`, matches the live API). The final warm-Telugu
+      reply needs the OpenRouter key in Settings (this install had none → "AI సెటప్ కావాలి"); the AI
+      round-trip itself is already verified separately.
 - [x] **Shipped: GitHub v0.2** release (signed APK). Repo https://github.com/alokflows/ammamma-companion
 
 ### Usability test — "Kamala" (grandmother sub-agent, no context) — 2026-07-06
@@ -125,6 +133,24 @@ Loved the call flow (one tap → big red hang-up). Confusions found → fixes:
 - [x] FIXED: Talk screen — clear "వింటున్నాను…"/"ఆలోచిస్తోంది…" states, kinder failure copy,
   and a **text box (type-to-talk)** so it works even where there's no speech engine.
 - [ ] TODO: real face photos on cards (recognition-by-face); needs a photo-picker in edit.
+
+### Usability test — "Saroja" (2nd grandmother sub-agent, cannot READ, no context) — 2026-07-06
+Drove the app blind on the emulator. Core truth she surfaced: **anything shown only as TEXT is
+invisible to her; when the app has nothing to SAY, she assumes she broke it.** Loved the home
+clock, the family cards, and the warm voice ("Cheppamma, emi kavali"). Real findings + status:
+- [x] FIXED: Talk screen no longer goes SILENT. Tapping the mic with no AI key / no speech engine
+  now SPEAKS the guidance (not just a text line), and no longer auto-pops the keyboard (a keyboard
+  reads as "you must type" and scared her). AI-failure replies are spoken too. Verified on emulator.
+- [ ] BLOCKER (real device): mic must actually work out of the box — needs the OpenRouter key set in
+  Settings once; she has no typing fallback. STT itself only testable on her phone.
+- [ ] BLOCKER: contacts ship empty ("no number") and the only way to add one is a typed form → she
+  can't place a single call unaided. Needs family-prefilled contacts or a setup flow (Recorder Studio).
+- [ ] HIGH: real photos on face cards — identical grey silhouettes force reading the name.
+- [ ] MED: Back exits to the launcher (she got lost); consider returning Home instead of exiting.
+- [ ] MED: speak the greeting + person's name on tap; make the gear a spoken "family setup"; drop
+  stray English labels.
+- NOTE (test artifacts, NOT bugs): she first saw the Talk screen only because a prior test left the
+  app there — real launch is Home. Mic "dead" on emulator = no speech engine + no key, not a code bug.
 
 ### Talk + voice on the EMULATOR (for laptop testing) — 2026-07-06
 - Emulator has NO Google speech engine → mic STT can't work here (only on her real phone).
@@ -147,9 +173,8 @@ Loved the call flow (one tap → big red hang-up). Confusions found → fixes:
    - Hands-free loop: after speaking the reply, auto-reopen mic; stop on 10s silence or manual stop.
    - Call-intent: if she says "call <person>", auto-dial that Contact instead of chatting.
    - Offline: command-match + photo buttons, never an error.
-2. **Weather (Telugu)** — Huzurabad (lat ~18.20, lon ~79.03). Use **Open-Meteo (free, NO key)** →
-   pass the forecast to `AiBrain.ask(..., extraContext=weather)` so the model phrases it warmly in
-   Telugu. (`extraContext` param already exists.) Optional weather tile.
+2. ~~**Weather (Telugu)**~~ **DONE** — `Weather.kt` (Open-Meteo, no key) → `AiBrain.extraContext`,
+   emulator-verified. Optional future polish: a weather tile on Home, and half-day/tomorrow phrasing.
 3. **Grandpa finder** — core done (§7); optional "finder role" toggle remains.
 4. **Good-morning heartbeat**, **talking alarm**, **hourly time chimes** (24 clips, manifest).
 5. **Recorder Studio** (family records clips + per-contact "<name> chestunnaru") — Alok's LAST step.

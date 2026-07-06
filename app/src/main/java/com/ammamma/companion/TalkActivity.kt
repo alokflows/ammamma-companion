@@ -61,16 +61,23 @@ class TalkActivity : Activity(), RecognitionListener {
     }
 
     private fun onMicTap() {
+        // She cannot read — so never answer her with a SILENT text line. Every status she
+        // needs to know gets SPOKEN too. (Silence made our tester think she'd broken the phone.)
+        val voice = Announcer.get(this)
         if (Settings.aiKey(this).isBlank()) {
-            status.text = "AI సెటప్ కావాలి — settings"
+            val msg = "ఇది మాట్లాడటానికి, ఇంట్లో వాళ్ళు ఒకసారి సిద్ధం చేయాలి"  // family must set it up once
+            status.text = msg
+            voice.say(msg)
             return
         }
         if (SpeechRecognizer.isRecognitionAvailable(this)) {
             ensureMicPermissionThenListen()
         } else {
-            // No speech engine (e.g. this emulator): point her at the text box.
-            status.text = "మైక్ లేదు — కింద టైప్ చేయండి"   // no mic, type below
-            input.requestFocus()
+            // No speech engine (e.g. this emulator). Speak the guidance — and do NOT auto-pop
+            // the keyboard: a keyboard reads as "you must type", which frightens a non-typist.
+            val msg = "మైక్ ఇక్కడ లేదు, ఇంట్లో వాళ్ళను అడగండి"  // no mic here, ask your family
+            status.text = msg
+            voice.say(msg)
         }
     }
 
@@ -110,16 +117,21 @@ class TalkActivity : Activity(), RecognitionListener {
         reply.text = text
         val key = Settings.aiKey(this)
         bg.execute {
-            val r = AiBrain.ask(key, text)
+            // If she's asking about the weather, fetch today's facts for her town and let
+            // the brain phrase them warmly in Telugu. Fetch fails silently → normal chat.
+            val weather = if (Weather.isWeatherQuestion(text)) Weather.factsForBrain() else null
+            val r = AiBrain.ask(key, text, weather)
             main.post {
                 if (r.ok) {
                     status.text = ""
                     reply.text = r.text
                     Announcer.get(this).say(r.text)
                 } else {
-                    // Never silently drop what she said — keep it visible with the reason.
+                    // Never silently drop what she said — show it AND speak the reason aloud,
+                    // because a text-only error is invisible to her (r.text is warm Telugu).
                     status.text = "మళ్ళీ ప్రయత్నించండి"
                     reply.text = "మీరు: $text\n\n${r.text}"
+                    Announcer.get(this).say(r.text)
                 }
             }
         }
