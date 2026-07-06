@@ -34,6 +34,13 @@ object Contacts {
         Contact("డాక్టర్", "Doctor", "", Color.parseColor("#8E5BB5"))
     )
 
+    // Ring colours cycled through as new people are added.
+    private val PALETTE = listOf(
+        Color.parseColor("#E4572E"), Color.parseColor("#E8A200"),
+        Color.parseColor("#4C8C7D"), Color.parseColor("#C0507F"),
+        Color.parseColor("#3F7CC9"), Color.parseColor("#8E5BB5")
+    )
+
     private fun prefs(c: Context) =
         c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -79,5 +86,21 @@ object Contacts {
             number = number.trim()
         )
         save(c, list)
+    }
+
+    /** Add a new person (gets the next colour in the palette). */
+    fun add(c: Context, name: String, english: String, number: String) {
+        val list = load(c).toMutableList()
+        list.add(Contact(name.trim(), english.trim(), number.trim(), PALETTE[list.size % PALETTE.size]))
+        save(c, list)
+    }
+
+    /** Remove a person. */
+    fun remove(c: Context, index: Int) {
+        val list = load(c).toMutableList()
+        if (index in list.indices) {
+            list.removeAt(index)
+            save(c, list)
+        }
     }
 }

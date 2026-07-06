@@ -21,25 +21,30 @@ class CallReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
-        // We only announce when the phone is RINGING (an incoming call).
-        if (intent.getStringExtra(TelephonyManager.EXTRA_STATE) != TelephonyManager.EXTRA_STATE_RINGING) return
 
-        val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER).orEmpty()
-        val contacts = Contacts.load(context)
-        val idx = contacts.indexOfFirst { it.number.isNotBlank() && sameNumber(it.number, number) }
+        when (intent.getStringExtra(TelephonyManager.EXTRA_STATE)) {
+            TelephonyManager.EXTRA_STATE_RINGING -> {
+                val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER).orEmpty()
+                val contacts = Contacts.load(context)
+                val idx = contacts.indexOfFirst { it.number.isNotBlank() && sameNumber(it.number, number) }
 
-        val clipKey: String
-        val text: String
-        if (idx >= 0) {
-            clipKey = "caller_$idx"
-            text = "${contacts[idx].name} ఫోన్ చేస్తున్నారు"      // "<name> is calling"
-        } else {
-            clipKey = "caller_unknown"
-            text = "ఎవరో ఫోన్ చేస్తున్నారు"                        // "someone is calling"
+                val clipKey: String
+                val text: String
+                if (idx >= 0) {
+                    clipKey = "caller_$idx"
+                    text = "${contacts[idx].name} ఫోన్ చేస్తున్నారు"   // "<name> is calling"
+                } else {
+                    clipKey = "caller_unknown"
+                    text = "ఎవరో ఫోన్ చేస్తున్నారు"                     // "someone is calling"
+                }
+                Log.i(TAG, "Ringing from \"$number\" -> repeat \"$text\"")
+                // Repeat the name every few seconds WHILE ringing (service drives it).
+                CompanionService.startCaller(context, clipKey, text)
+            }
+            // Answered or ended → stop immediately.
+            TelephonyManager.EXTRA_STATE_OFFHOOK,
+            TelephonyManager.EXTRA_STATE_IDLE -> CompanionService.stopCaller(context)
         }
-
-        Log.i(TAG, "Incoming call from \"$number\" -> \"$text\"")
-        Announcer.get(context).announce(clipKey, text)
     }
 
     /** Match by the last digits, so +91 / spaces / local formats still match. */

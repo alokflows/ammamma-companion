@@ -14,6 +14,9 @@ object Settings {
     private const val KEY_CODE = "code_word"
     private const val KEY_NUMBERS = "family_numbers"
     private const val KEY_AI = "ai_key"   // OpenRouter API key (sk-or-...)
+    private const val KEY_BATT_MIN = "battery_reminder_min"
+
+    private const val DEFAULT_BATT_MIN = 5
 
     private const val DEFAULT_CODE = "FINDME"
 
@@ -33,11 +36,18 @@ object Settings {
 
     fun aiKey(c: Context): String = prefs(c).getString(KEY_AI, "").orEmpty().trim()
 
-    fun save(c: Context, codeWord: String, familyNumbersRaw: String, aiKey: String) {
+    /** How often (minutes) the low-battery reminder repeats until charging. */
+    fun batteryReminderMinutes(c: Context): Int =
+        prefs(c).getString(KEY_BATT_MIN, null)?.toIntOrNull()?.coerceIn(1, 120) ?: DEFAULT_BATT_MIN
+
+    fun batteryReminderRaw(c: Context) = prefs(c).getString(KEY_BATT_MIN, DEFAULT_BATT_MIN.toString()).orEmpty()
+
+    fun save(c: Context, codeWord: String, familyNumbersRaw: String, aiKey: String, batteryMinutes: String) {
         prefs(c).edit()
             .putString(KEY_CODE, codeWord.trim())
             .putString(KEY_NUMBERS, familyNumbersRaw.trim())
             .putString(KEY_AI, aiKey.trim())
+            .putString(KEY_BATT_MIN, batteryMinutes.trim())
             .apply()
     }
 

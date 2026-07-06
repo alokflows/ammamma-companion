@@ -19,6 +19,7 @@ class SettingsActivity : Activity() {
     private lateinit var codeWord: EditText
     private lateinit var familyNumbers: EditText
     private lateinit var aiKey: EditText
+    private lateinit var batteryMinutes: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,11 +28,13 @@ class SettingsActivity : Activity() {
         codeWord = findViewById(R.id.codeWord)
         familyNumbers = findViewById(R.id.familyNumbers)
         aiKey = findViewById(R.id.aiKey)
+        batteryMinutes = findViewById(R.id.batteryMinutes)
 
         // Pre-fill with whatever is saved.
         codeWord.setText(Settings.codeWordRaw(this))
         familyNumbers.setText(Settings.familyNumbersRaw(this))
         aiKey.setText(Settings.aiKey(this))
+        batteryMinutes.setText(Settings.batteryReminderRaw(this))
 
         findViewById<Button>(R.id.save).setOnClickListener { save() }
 
@@ -47,7 +50,8 @@ class SettingsActivity : Activity() {
             this,
             codeWord.text.toString(),
             familyNumbers.text.toString(),
-            aiKey.text.toString()
+            aiKey.text.toString(),
+            batteryMinutes.text.toString()
         )
         Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show()
 

@@ -84,9 +84,10 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
         warnedFull = false
 
         if (charging) {
-            // Plugged in and climbing: clear the low-battery reminders.
+            // Plugged in: clear the warnings and silence the repeating reminder.
             warned20 = false
             warned10 = false
+            CompanionService.stopBatteryReminder(context)
             return
         }
 
@@ -96,10 +97,12 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
             warned10 = true
             announcer.announce("battery_low", "ఛార్జ్ $pct శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి")
             AlertActivity.show(context, "ఛార్జ్ $pct%\nఛార్జ్ చేయండి", green = false)
+            CompanionService.startBatteryReminder(context)   // nag every N min until charged
         } else if (pct <= 20 && !warned20) {
             warned20 = true
             announcer.announce("battery_low", "ఛార్జ్ $pct శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి")
             AlertActivity.show(context, "ఛార్జ్ $pct%\nఛార్జ్ చేయండి", green = false)
+            CompanionService.startBatteryReminder(context)
         }
 
         // Reset flags once she's safely above each threshold again.

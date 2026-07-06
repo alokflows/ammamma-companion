@@ -136,40 +136,65 @@ class MainActivity : Activity() {
             card.setOnLongClickListener { showEditDialog(index, contact); true }
 
             // two equal columns, each cell with a little margin
-            val lp = GridLayout.LayoutParams().apply {
-                width = 0
-                height = GridLayout.LayoutParams.WRAP_CONTENT
-                columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                setMargins(gap, gap, gap, gap)
-            }
-            grid.addView(card, lp)
+            grid.addView(card, cellParams(gap))
         }
+
+        // A "+" tile at the end to ADD a new person.
+        val addCard = inflater.inflate(R.layout.item_face, grid, false)
+        addCard.findViewById<TextView>(R.id.name).text = "＋"
+        addCard.findViewById<TextView>(R.id.rel).text = "కొత్త వ్యక్తి · Add"
+        addCard.findViewById<View>(R.id.callBadge).visibility = View.GONE
+        addCard.findViewById<View>(R.id.noNumber).visibility = View.GONE
+        addCard.findViewById<FrameLayout>(R.id.avatarFrame).background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.parseColor("#F3E7D3"))
+            setStroke(dp(4), Color.parseColor("#B0857A"))
+        }
+        addCard.setOnClickListener { showEditDialog(-1, null) }
+        grid.addView(addCard, cellParams(gap))
     }
 
-    /** Family editor for one face: change the Telugu name, label, and phone number. */
-    private fun showEditDialog(index: Int, contact: Contact) {
+    private fun cellParams(gap: Int) = GridLayout.LayoutParams().apply {
+        width = 0
+        height = GridLayout.LayoutParams.WRAP_CONTENT
+        columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+        setMargins(gap, gap, gap, gap)
+    }
+
+    /**
+     * Family editor. [index] < 0 means ADD a new person; otherwise edit (with a
+     * Delete option) the existing one.
+     */
+    private fun showEditDialog(index: Int, contact: Contact?) {
         val pad = dp(20)
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, dp(8), pad, 0)
         }
-        val nameEt = EditText(this).apply { setText(contact.name); hint = "పేరు / Name (Telugu)" }
-        val engEt = EditText(this).apply { setText(contact.english); hint = "Label (English)" }
+        val nameEt = EditText(this).apply { setText(contact?.name ?: ""); hint = "పేరు / Name (Telugu)" }
+        val engEt = EditText(this).apply { setText(contact?.english ?: ""); hint = "Label (English)" }
         val numEt = EditText(this).apply {
-            setText(contact.number); hint = "Phone number"
+            setText(contact?.number ?: ""); hint = "Phone number"
             inputType = InputType.TYPE_CLASS_PHONE
         }
         box.addView(nameEt); box.addView(engEt); box.addView(numEt)
 
-        AlertDialog.Builder(this)
-            .setTitle("పేరు · నంబర్ మార్చండి")   // change name / number
+        val builder = AlertDialog.Builder(this)
+            .setTitle(if (index < 0) "కొత్త వ్యక్తి · New person" else "పేరు · నంబర్ మార్చండి")
             .setView(box)
             .setPositiveButton("సేవ్") { _, _ ->
-                Contacts.update(this, index, nameEt.text.toString(), engEt.text.toString(), numEt.text.toString())
+                val n = nameEt.text.toString(); val e = engEt.text.toString(); val num = numEt.text.toString()
+                if (index < 0) Contacts.add(this, n, e, num) else Contacts.update(this, index, n, e, num)
                 buildFaceGrid()
             }
             .setNegativeButton("రద్దు", null)
-            .show()
+        if (index >= 0) {
+            builder.setNeutralButton("తీసివేయి") { _, _ ->   // delete
+                Contacts.remove(this, index)
+                buildFaceGrid()
+            }
+        }
+        builder.show()
     }
 
     /**

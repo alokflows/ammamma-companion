@@ -66,15 +66,30 @@ class AlertActivity : Activity() {
             gravity = Gravity.CENTER
         })
 
-        // One enormous, unmissable button.
+        // One enormous, unmissable dismiss button.
         root.addView(Button(this).apply {
             text = "సరే"   // "OK"
             textSize = 34f
             setOnClickListener { finish() }
         }, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
-            (resources.displayMetrics.heightPixels * 0.28f).toInt()
-        ).apply { topMargin = dp(48) })
+            (resources.displayMetrics.heightPixels * 0.22f).toInt()
+        ).apply { topMargin = dp(40) })
+
+        // Low-battery only: a snooze button that silences the repeating reminder.
+        if (!isGood) {
+            root.addView(Button(this).apply {
+                text = "తర్వాత చెప్పు"   // "tell me later" (snooze)
+                textSize = 26f
+                setOnClickListener {
+                    CompanionService.stopBatteryReminder(this@AlertActivity)
+                    finish()
+                }
+            }, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(16) })
+        }
 
         setContentView(root)
     }

@@ -115,6 +115,31 @@
             android:inputType="textNoSuggestions"
             android:textColor="#402A1C" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="బ్యాటరీ గుర్తు (నిమిషాలు) · Battery reminder (minutes)"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="How often it repeats 'please charge' until the charger is in."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/batteryMinutes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="5"
+            android:inputType="number"
+            android:textColor="#402A1C" />
+
         <Button
             android:id="@+id/save"
             android:layout_width="match_parent"
