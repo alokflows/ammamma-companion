@@ -34,6 +34,12 @@ class SettingsActivity : Activity() {
         aiKey.setText(Settings.aiKey(this))
 
         findViewById<Button>(R.id.save).setOnClickListener { save() }
+
+        // Demo: speak the offline caller announcement for the first person.
+        findViewById<Button>(R.id.callerDemo).setOnClickListener {
+            val who = Contacts.load(this).firstOrNull()?.name ?: "కూతురు"
+            Announcer.get(this).announce("caller_demo", "$who ఫోన్ చేస్తున్నారు")
+        }
     }
 
     private fun save() {

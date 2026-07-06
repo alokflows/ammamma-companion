@@ -1,35 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A warm cream heart, centered in the adaptive-icon safe zone, with a soft
-     inner shine and two little "voice" arcs (it speaks with love). -->
+<!-- A small, clean, Apple-style white heart, centered with generous padding. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-    <!-- heart -->
-    <path
-        android:fillColor="#FFF6EC"
-        android:pathData="M54,79 C54,79 27,60 27,44 C27,35 34,28 43,28 C48.5,28 52.5,31 54,36 C55.5,31 59.5,28 65,28 C74,28 81,35 81,44 C81,60 54,79 54,79 Z" />
-
-    <!-- soft shine on the heart -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:fillAlpha="0.35"
-        android:pathData="M43,34 C38,34 34.5,37.5 34.5,42.5 C34.5,45 35.5,47 37,49 C36,45 37.5,39 43,37.5 C45.5,36.8 47,35 43,34 Z" />
-
-    <!-- two little voice arcs to the upper-right -->
-    <path
-        android:strokeColor="#FFF6EC"
-        android:strokeWidth="3"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000"
-        android:pathData="M84,40 Q88,46 84,52" />
-    <path
-        android:strokeColor="#FFF6EC"
-        android:strokeWidth="3"
-        android:strokeAlpha="0.75"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000"
-        android:pathData="M89,35 Q96,46 89,57" />
+        android:pathData="M54,71.5 C54,71.5 36,58.5 36,47 C36,41.2 40.4,37 46,37 C49.6,37 52.7,39.2 54,42.3 C55.3,39.2 58.4,37 62,37 C67.6,37 72,41.2 72,47 C72,58.5 54,71.5 54,71.5 Z" />
 </vector>

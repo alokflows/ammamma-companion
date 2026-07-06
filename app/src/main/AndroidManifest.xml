@@ -8,6 +8,8 @@
     <!-- Foreground service keeps the companion alive on ColorOS, which kills
          ordinary background apps aggressively. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Ask to be exempt from battery optimization so we stay alive persistently. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- Lets the dismiss card wake the screen so she never misses a warning. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- One-tap calling from a face button. -->

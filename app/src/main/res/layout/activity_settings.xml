@@ -28,6 +28,16 @@
             android:textColor="#8A7361"
             android:textSize="14sp" />
 
+        <!-- Hear the offline caller announcement, on demand. -->
+        <Button
+            android:id="@+id/callerDemo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:paddingVertical="14dp"
+            android:text="🔊 కాలర్ డెమో వినండి · Hear caller demo"
+            android:textSize="16sp" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

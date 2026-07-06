@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
@@ -50,10 +51,8 @@ class MainActivity : Activity() {
         // Make sure the always-alive companion service is running.
         startForegroundService(Intent(this, CompanionService::class.java))
 
-        // Ask once for phone-state access so we can announce WHO is calling.
-        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.READ_PHONE_STATE), REQ_PHONE)
-        }
+        // First run: ask for everything the companion needs, up front, in one go.
+        requestStartupPermissions()
 
         clock = findViewById(R.id.clock)
         date = findViewById(R.id.date)
@@ -187,11 +186,43 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Everything the companion needs to work + announce, requested together on launch. */
+    private fun requestStartupPermissions() {
+        val needed = STARTUP_PERMISSIONS.filter {
+            checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (needed.isNotEmpty()) {
+            requestPermissions(needed.toTypedArray(), REQ_STARTUP)
+        } else {
+            askToRunPersistently()
+        }
+    }
+
+    /** Ask ColorOS/Android to stop killing us for battery — so the companion stays alive. */
+    private fun askToRunPersistently() {
+        val pm = getSystemService(PowerManager::class.java) ?: return
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            runCatching {
+                startActivity(
+                    Intent(
+                        android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:$packageName")
+                    )
+                )
+            }
+        }
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
+        if (requestCode == REQ_STARTUP) {
+            // Whatever they granted, next nudge Android to let us run persistently.
+            askToRunPersistently()
+            return
+        }
         if (requestCode == REQ_CALL) {
             val number = pendingNumber
             pendingNumber = null
@@ -209,6 +240,16 @@ class MainActivity : Activity() {
 
     companion object {
         private const val REQ_CALL = 101
-        private const val REQ_PHONE = 102
+        private const val REQ_STARTUP = 103
+
+        // All the runtime permissions the companion needs, asked together on first run.
+        private val STARTUP_PERMISSIONS = arrayOf(
+            Manifest.permission.CALL_PHONE,          // one-tap calling
+            Manifest.permission.READ_PHONE_STATE,    // announce who's calling
+            Manifest.permission.RECEIVE_SMS,         // find-my-phone
+            Manifest.permission.SEND_SMS,            // grandpa location reply
+            Manifest.permission.ACCESS_FINE_LOCATION,// grandpa location reply
+            Manifest.permission.RECORD_AUDIO         // talk companion (voice)
+        )
     }
 }
