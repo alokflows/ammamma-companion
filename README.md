@@ -1,4 +1,8 @@
-# అమ్మమ్మ తోడు · Ammamma's Phone Partner
+<p align="center">
+  <img src="docs/logo.svg" width="128" alt="Ammamma's Phone Partner logo" />
+</p>
+
+<h1 align="center">అమ్మమ్మ తోడు · Ammamma's Phone Partner</h1>
 
 > Turning an old phone into a talking companion for an elderly Telugu-speaking grandmother.
 > **Offline-first. Audio-first. Built for someone who cannot read the screen.**

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Ammamma's Phone Partner logo">
+  <defs>
+    <linearGradient id="warm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F4A72A"/>
+      <stop offset="1" stop-color="#DB4E2B"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#warm)"/>
+  <!-- heart -->
+  <path fill="#FFF6EC"
+    d="M256,380 C256,380 120,285 120,205 C120,160 155,125 200,125 C227,125 247,140 256,165 C265,140 285,125 312,125 C357,125 392,160 392,205 C392,285 256,380 256,380 Z"/>
+  <!-- soft shine -->
+  <path fill="#FFFFFF" fill-opacity="0.35"
+    d="M200,150 C176,150 160,167 160,190 C160,202 165,212 172,221 C167,201 175,171 200,164 C212,161 219,153 200,150 Z"/>
+  <!-- voice arcs -->
+  <path fill="none" stroke="#FFF6EC" stroke-width="15" stroke-linecap="round"
+    d="M398,190 Q418,218 398,246"/>
+  <path fill="none" stroke="#FFF6EC" stroke-width="15" stroke-linecap="round" stroke-opacity="0.75"
+    d="M420,165 Q456,218 420,271"/>
+</svg>
