@@ -72,10 +72,13 @@
             android:showOnLockScreen="true"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
 
+        <!-- stateHidden: the keyboard must NEVER pop up on its own — it buries the
+             mic button and terrifies a non-typist. It opens only if the text box
+             (the family's fallback) is deliberately tapped. -->
         <activity
             android:name=".TalkActivity"
             android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="stateHidden|adjustResize" />
 
         <activity
             android:name=".SettingsActivity"

@@ -70,6 +70,12 @@ class MainActivity : Activity() {
         date = findViewById(R.id.date)
         buildFaceGrid()
 
+        // Speak a hello when she opens the app (once per open, not on every resume).
+        // The home screen used to be completely silent — for someone who can't read,
+        // that's indistinguishable from a broken phone. Clip key so the family can
+        // later record this greeting in their own voice.
+        Announcer.get(this).announce("home_greeting", "నమస్తే అమ్మమ్మ")
+
         findViewById<View>(R.id.talkButton).setOnClickListener {
             startActivity(Intent(this, TalkActivity::class.java))
         }
@@ -80,6 +86,8 @@ class MainActivity : Activity() {
         val gear = findViewById<View>(R.id.settings)
         gear.setOnClickListener {
             Toast.makeText(this, "కుటుంబం కోసం — నొక్కి పట్టుకోండి", Toast.LENGTH_SHORT).show()
+            // She can't read the toast — say it too (every state she can reach speaks).
+            Announcer.get(this).say("ఇది ఇంట్లో వాళ్ళ కోసం అమ్మమ్మ")
         }
         gear.setOnLongClickListener {
             startActivity(Intent(this, SettingsActivity::class.java)); true
@@ -146,10 +154,13 @@ class MainActivity : Activity() {
             // stays on long-press, for family.
             card.setOnClickListener {
                 if (hasNumber) {
+                    // Say WHO is being called as the call goes out — she may have
+                    // tapped by mistake, and hearing the name is her only feedback.
+                    Announcer.get(this).say("${contact.name}కి ఫోన్ చేస్తున్నాను")
                     call(contact.number)
                 } else {
                     Toast.makeText(this, "నంబర్ లేదు — కుటుంబాన్ని అడగండి", Toast.LENGTH_SHORT).show()
-                    Announcer.get(this).say("nambaru ledu")
+                    Announcer.get(this).say("నంబర్ లేదు, ఇంట్లో వాళ్ళను అడగండి")
                 }
             }
             // Long press = edit name/number (for family).

@@ -240,3 +240,36 @@ Grandfather has a good phone; install the SAME app there in a "finder" role.
 - WebView version — can it play m.youtube.com for cooking videos?
 - ColorOS SYSTEM_ALERT_WINDOW / auto-start reliability.
 - Exact cheapest Gemini model with audio input (verify at build time).
+
+## 11. v0.6 (2026-07-07) — real-device bug report round 2
+Fixes driven by Alok's on-device testing:
+- **Voice stops the INSTANT a call is answered/ended.** stopCallerLoop() now calls
+  Announcer.stopSpeaking(); previously it only cancelled the *next* repeat, so the
+  current sentence ran 1-2s over the live call.
+- **Long names are never chopped.** The repeat loop skips its tick while
+  Announcer.isSpeaking() (re-checks every 800ms) instead of QUEUE_FLUSHing mid-word.
+- **"Someone is calling" can no longer replace the real name.** The number-less
+  RINGING broadcast waits 1.5s (UNKNOWN_GRACE_MS) for its numbered twin before
+  announcing unknown — the two goAsync threads used to race and the generic line
+  could land in the service AFTER the name.
+- **Silent announcements after process death fixed.** TTS init is async; when an
+  incoming call resurrects the app, the first speak() used to fail silently. Now the
+  line queues in Announcer.pendingText and onInit speaks it (verified: 19ms after
+  "TTS ready" on a kill→call test). stopSpeaking() clears the queue too, so a call
+  answered during engine startup never speaks late.
+- **AI is provider-agnostic with real errors.** Settings has base URL (default
+  OpenRouter), key, model + "Get models" (live GET /models list, free-first, verified
+  343 models) + "Test AI" (shows exact HTTP status/body in a dialog). AiBrain speaks
+  a DIFFERENT Telugu line per failure: 401/403 key wrong, 402 credits, 400/404 model
+  dead, 429 genuinely busy. The old code called everything "busy" — which is how a
+  never-used key masqueraded as rate-limiting. Talk screen prints r.detail small for
+  the family. AiBrain.ask() signature is now ask(context, text, extra).
+- **Travel Mode** (Settings toggle, off by default): every charger plug/unplug
+  silently texts GPS location to ALL family numbers via the generalized
+  LocationReplyService (multi-recipient + message prefix). No internet needed.
+  NOT included, with reasons: toggling airplane mode / mobile data programmatically
+  is impossible for normal apps since Android 4.2/5 (needs system privileges), and
+  front/back camera photos need internet to deliver — parked until there's a channel.
+- **ColorOS SMS popup**: the countdown "send SMS?" dialog is ColorOS's guard, not
+  ours — SETUP_PHONE.md step B2 (Send SMS → Allow) removes it. No code fix exists
+  short of becoming the default SMS app (bad idea).

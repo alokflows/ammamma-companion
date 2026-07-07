@@ -130,9 +130,10 @@ class TalkActivity : Activity(), RecognitionListener {
                     // because a text-only error is invisible to her (r.text is warm Telugu).
                     // The technical detail is printed small for the FAMILY: grandma can't
                     // read it, but whoever debugs the phone sees the real cause on-screen.
+                    // No raw HTTP detail on HER screen (it scared the grandma tester);
+                    // the family diagnoses with Settings -> Test AI, which shows it all.
                     status.text = "మళ్ళీ ప్రయత్నించండి"
-                    reply.text = "మీరు: $text\n\n${r.text}" +
-                        if (r.detail.isNotBlank()) "\n\n(${r.detail})" else ""
+                    reply.text = "మీరు: $text\n\n${r.text}"
                     Announcer.get(this).say(r.text)
                 }
             }
@@ -149,13 +150,19 @@ class TalkActivity : Activity(), RecognitionListener {
         val text = results
             ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             ?.firstOrNull()
-        if (text.isNullOrBlank()) status.text = "వినిపించలేదు — మళ్ళీ చెప్పండి లేదా టైప్ చేయండి"
-        else handleUtterance(text)
+        if (text.isNullOrBlank()) {
+            val msg = "వినిపించలేదు, మళ్ళీ చెప్పండి"
+            status.text = msg
+            Announcer.get(this).say(msg)   // she can't read the status line
+        } else handleUtterance(text)
     }
 
     override fun onError(error: Int) {
-        // Kinder than a bare "try again", and always offers the text box.
-        status.text = "వినిపించలేదు — టైప్ చేయండి"   // didn't hear — please type
+        // "Didn't hear — say it again": SPOKEN, because a text-only status is
+        // invisible to her (the grandma tester hit this exact dead-end).
+        val msg = "వినిపించలేదు, మళ్ళీ చెప్పండి"
+        status.text = msg
+        Announcer.get(this).say(msg)
     }
 
     override fun onEndOfSpeech() { status.text = "ఆలోచిస్తోంది…" }
