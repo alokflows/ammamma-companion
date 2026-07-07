@@ -242,7 +242,9 @@ class CompanionService : Service() {
         val r = object : Runnable {
             override fun run() {
                 val (pct, charging) = readBattery()
-                if (charging || pct < 0 || pct > LOW_CLEAR_PCT) {
+                // Stop nagging once she's a couple of percent above the FAMILY'S
+                // configured low threshold (not a hardcoded one) or plugged in.
+                if (charging || pct < 0 || pct > Settings.batteryLowPercent(this@CompanionService) + 2) {
                     stopBatteryLoop()   // charged (or plugged in) → shut up
                     return
                 }
@@ -316,7 +318,6 @@ class CompanionService : Service() {
 
         private const val CALLER_INTERVAL_MS = 5_000L   // repeat the name every 5s while ringing
         private const val CALLER_MAX_REPEATS = 12       // ~1 min safety cap
-        private const val LOW_CLEAR_PCT = 22            // above this, stop nagging
 
         const val ACTION_CALLER_START = "com.ammamma.companion.CALLER_START"
         const val ACTION_CALLER_STOP = "com.ammamma.companion.CALLER_STOP"
