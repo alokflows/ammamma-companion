@@ -70,7 +70,12 @@ class AlertActivity : Activity() {
         root.addView(Button(this).apply {
             text = "సరే"   // "OK"
             textSize = 34f
-            setOnClickListener { finish() }
+            setOnClickListener {
+                // Silence any line still playing the instant she taps — don't let it
+                // finish on its own.
+                Announcer.get(this@AlertActivity).stopSpeaking()
+                finish()
+            }
         }, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             (resources.displayMetrics.heightPixels * 0.22f).toInt()
@@ -82,6 +87,7 @@ class AlertActivity : Activity() {
                 text = "తర్వాత చెప్పు"   // "tell me later" (snooze)
                 textSize = 26f
                 setOnClickListener {
+                    Announcer.get(this@AlertActivity).stopSpeaking()
                     CompanionService.stopBatteryReminder(this@AlertActivity)
                     finish()
                 }

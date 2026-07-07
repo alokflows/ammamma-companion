@@ -31,7 +31,21 @@ class CallReceiver : BroadcastReceiver() {
         when (intent.getStringExtra(TelephonyManager.EXTRA_STATE)) {
             TelephonyManager.EXTRA_STATE_RINGING -> {
                 val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER).orEmpty()
-                handleRinging(context, number)
+                // Resolve WHO is calling OFF the main thread. The device PhoneLookup can
+                // be slow on a full ColorOS phone, and doing it here (the main thread the
+                // whole UI shares) would delay the very first spoken word. goAsync() keeps
+                // this receiver alive until the worker calls finish() in its finally.
+                val pending = goAsync()
+                val startedAt = System.currentTimeMillis()
+                Thread {
+                    try {
+                        handleRinging(context, number)
+                    } finally {
+                        Log.i(TAG, "Caller resolve+announce dispatched in " +
+                            "${System.currentTimeMillis() - startedAt}ms")
+                        pending.finish()
+                    }
+                }.start()
             }
             // Answered or ended → stop immediately and forget this ring.
             TelephonyManager.EXTRA_STATE_OFFHOOK,
