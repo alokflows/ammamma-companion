@@ -78,8 +78,16 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="44dp"
+        android:layout_marginHorizontal="8dp"
+        android:minHeight="80dp"
         android:paddingTop="22dp"
         android:paddingBottom="22dp"
+        android:background="@drawable/btn_on_green"
+        android:stateListAnimator="@null"
+        android:elevation="6dp"
+        android:textColor="#16693A"
+        android:textStyle="bold"
+        android:textAllCaps="false"
         android:text="సరే"
         android:textSize="30sp" />
 
