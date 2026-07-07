@@ -26,18 +26,14 @@ object AiBrain {
 
     private const val TAG = "Ammamma"
 
-    // OpenRouter-only fallback: free models get rate-limited (429), so we give
-    // OpenRouter many to roll through, ending with "openrouter/free" which
-    // auto-picks any that's available. Warm-at-Telugu ones first. Used ONLY when
-    // the family hasn't picked a model in Settings.
-    private val FALLBACK_MODELS = listOf(
-        "google/gemma-4-31b-it:free",
-        "openai/gpt-oss-120b:free",
-        "nvidia/nemotron-3-super-120b-a12b:free",
-        "google/gemma-4-26b-a4b-it:free",
-        "openai/gpt-oss-20b:free",
-        "openrouter/free"
-    )
+    // When the family leaves the model field blank, we ask the provider for its
+    // model list and pick the best chat model ourselves — works for ANY provider
+    // (Groq, OpenRouter, OpenAI…). The pick is cached per base URL so we only pay
+    // the extra /models call once per app run, not on every message.
+    private val autoModelCache = HashMap<String, String>()
+
+    /** Drop cached auto-picks when the family edits the AI config (new key/provider). */
+    fun forgetAutoModel() = autoModelCache.clear()
 
     private const val SYSTEM_PROMPT =
         "You are Ammamma's warm companion, like a caring family member. " +
@@ -64,20 +60,18 @@ object AiBrain {
             return Result(false, "AI సెటప్ కావాలి", "No API key saved in Settings")
         }
         val base = Settings.aiBaseUrl(context)
-        val model = Settings.aiModel(context)
-
-        val body = JSONObject()
-        when {
-            model.isNotBlank() -> body.put("model", model)
-            // No model chosen: the multi-model "models" field is OpenRouter-only.
-            base.contains("openrouter") -> body.put("models", JSONArray(FALLBACK_MODELS))
-            else -> return Result(
+        // Family-chosen model wins; if blank, auto-pick the best one from the
+        // provider's live list (any provider). Only errors if the list can't load.
+        val model = Settings.aiModel(context).ifBlank { autoPickModel(context, base) }
+        if (model.isBlank()) {
+            return Result(
                 false, "AI మోడల్ ఎంచుకోవాలి",
-                "No model selected. Tap 'Get models' in Settings and pick one — " +
-                    "required for providers other than OpenRouter."
+                "Couldn't reach $base to auto-pick a model. Check the address/key, " +
+                    "or tap 'Get models' in Settings and pick one."
             )
         }
 
+        val body = JSONObject().put("model", model)
         val messages = JSONArray()
         messages.put(JSONObject().put("role", "system").put("content", SYSTEM_PROMPT))
         if (!extraContext.isNullOrBlank()) {
@@ -129,6 +123,55 @@ object AiBrain {
         }
     }
 
+    /**
+     * Auto-choose the best chat model for [base]. Fetches the provider's list once
+     * (cached), then scores it. Returns "" if the list can't be loaded. BLOCKING.
+     */
+    private fun autoPickModel(context: Context, base: String): String {
+        autoModelCache[base]?.let { return it }
+        val models = fetchModels(context)
+        val best = if (models.ok) bestChatModel(models.ids) else null
+        if (best != null) {
+            autoModelCache[base] = best
+            Log.i(TAG, "Auto-picked model for $base: $best")
+            return best
+        }
+        Log.w(TAG, "Auto-pick failed for $base: ${models.error}")
+        return ""
+    }
+
+    /**
+     * Rank model ids and return the best one for warm Telugu chat, or null.
+     * Skips models that aren't chat (speech, embeddings, safety classifiers), then
+     * prefers instruction-tuned chat families and bigger parameter counts. Kept
+     * simple on purpose — a rough score beats a hand-maintained list going stale.
+     */
+    fun bestChatModel(ids: List<String>): String? {
+        val notChat = listOf(
+            "whisper", "tts", "embed", "guard", "safeguard", "orpheus",
+            "rerank", "moderation", "vision", "image", "audio", "prompt-guard"
+        )
+        return ids
+            .filter { id -> notChat.none { id.lowercase().contains(it) } }
+            .maxByOrNull { score(it) }
+    }
+
+    private fun score(id: String): Int {
+        val s = id.lowercase()
+        var n = 0
+        // Instruction/chat-tuned families answer conversationally.
+        if ("versatile" in s) n += 40
+        if ("instruct" in s || s.endsWith("-it") || "-it:" in s || "chat" in s) n += 25
+        // Families we've seen do warm Telugu well.
+        if ("llama" in s || "gemma" in s || "qwen" in s || "gpt-oss" in s) n += 15
+        // Rough size: the biggest number-before-'b' (e.g. 70b, 120b). Bigger = warmer.
+        Regex("(\\d+)b").findAll(s).map { it.groupValues[1].toIntOrNull() ?: 0 }
+            .maxOrNull()?.let { n += it.coerceAtMost(200) }
+        // On OpenRouter, only the :free tier is safe for this family's budget.
+        if (s.endsWith(":free")) n += 30
+        return n
+    }
+
     /** What the provider's /models endpoint returned. */
     data class Models(val ok: Boolean, val ids: List<String> = emptyList(), val error: String = "")
 
@@ -160,7 +203,8 @@ object AiBrain {
             val data = JSONObject(raw).getJSONArray("data")
             val ids = (0 until data.length())
                 .mapNotNull { data.optJSONObject(it)?.optString("id")?.takeIf { id -> id.isNotBlank() } }
-                .sortedWith(compareBy({ !it.endsWith(":free") }, { it }))
+                // Best chat model first, so the picker's top row is the one to tap.
+                .sortedWith(compareByDescending<String> { score(it) }.thenBy { it })
             if (ids.isEmpty()) Models(false, error = "Provider returned an empty model list.")
             else Models(true, ids)
         } catch (e: Exception) {

@@ -390,7 +390,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Works with any OpenAI-compatible provider. Paste the provider address and your key, then tap 'Get models' to pick a model from the live list. Stored only on this phone."
+            android:text="Works with any OpenAI-compatible provider (OpenRouter, Groq, OpenAI…). Paste the provider address and your key. Leave the model empty and the app picks the best one automatically, or tap 'Get models' to choose. Stored only on this phone."
             android:textColor="#8A7361"
             android:textSize="13sp" />
 
@@ -424,7 +424,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="Model (empty = auto)"
+                android:hint="Model (empty = best auto)"
                 android:inputType="textNoSuggestions"
                 android:textColor="#402A1C" />
 

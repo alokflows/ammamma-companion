@@ -121,6 +121,7 @@ class SettingsActivity : Activity() {
             aiModel.text.toString(),
             aiKey.text.toString()
         )
+        AiBrain.forgetAutoModel()   // provider/key may have changed — re-pick fresh
     }
 
     private fun fetchModelList() {
