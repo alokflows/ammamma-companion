@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -35,6 +36,15 @@ class MainActivity : Activity() {
     private lateinit var clock: TextView
     private lateinit var date: TextView
     private var pendingNumber: String? = null
+
+    // Location-off warning: spoken at most ONCE per app-open (reset in onCreate),
+    // but the banner stays visible for as long as location remains off.
+    private var warnedLocationOff = false
+    private var locationBanner: TextView? = null
+
+    // One-time setup flags (first-run permission storm, overlay ask). Deliberately
+    // NOT in Settings.kt — these are app plumbing, not family-editable settings.
+    private val flags by lazy { getSharedPreferences("setup_flags", MODE_PRIVATE) }
 
     // repeating tick that keeps the clock current
     private val clockTick = object : Runnable {
@@ -83,6 +93,7 @@ class MainActivity : Activity() {
             startActivity(Intent(this, FindPhoneActivity::class.java))
         }
         clockTick.run()  // start ticking
+        checkLocation()  // grandpa-finder needs location ON; nag if it's off
     }
 
     override fun onPause() {
@@ -217,31 +228,117 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Everything the companion needs to work + announce, requested together on launch. */
+    /**
+     * Setup chain, each step at most once: runtime permissions (FIRST launch only —
+     * never a repeat dialog-storm) → battery-optimization exemption → "display over
+     * other apps" (ColorOS needs it so alert screens actually appear). The chain is
+     * sequential so the family sees one clear ask at a time, not a pile of screens.
+     */
     private fun requestStartupPermissions() {
         val needed = STARTUP_PERMISSIONS.filter {
             checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
         }
-        if (needed.isNotEmpty()) {
+        if (needed.isNotEmpty() && !flags.getBoolean(FLAG_PERMS_ASKED, false)) {
+            flags.edit().putBoolean(FLAG_PERMS_ASKED, true).apply()
             requestPermissions(needed.toTypedArray(), REQ_STARTUP)
         } else {
             askToRunPersistently()
         }
     }
 
-    /** Ask ColorOS/Android to stop killing us for battery — so the companion stays alive. */
+    /**
+     * Ask ColorOS/Android to stop killing us for battery. Re-checked every launch
+     * (persistence is the app's spine), but it's a no-op once granted.
+     */
     private fun askToRunPersistently() {
-        val pm = getSystemService(PowerManager::class.java) ?: return
-        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-            runCatching {
-                startActivity(
+        val pm = getSystemService(PowerManager::class.java)
+        if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
+            val ok = runCatching {
+                startActivityForResult(
                     Intent(
                         android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                         Uri.parse("package:$packageName")
-                    )
+                    ),
+                    REQ_BATTERY_OPT
                 )
+            }.isSuccess
+            if (ok) return   // overlay ask continues in onActivityResult
+        }
+        askForOverlay()
+    }
+
+    /**
+     * "Display over other apps" — without it ColorOS suppresses our full-screen
+     * alerts (the find-phone screen ringing with NO stop button bug). Sent to the
+     * system toggle once; SETUP_PHONE.md covers doing it by hand if skipped.
+     */
+    private fun askForOverlay() {
+        if (android.provider.Settings.canDrawOverlays(this)) return
+        if (flags.getBoolean(FLAG_OVERLAY_ASKED, false)) return
+        flags.edit().putBoolean(FLAG_OVERLAY_ASKED, true).apply()
+        runCatching {
+            startActivity(
+                Intent(
+                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+            )
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        // Battery-exemption dialog closed (either way) → next step of the chain.
+        if (requestCode == REQ_BATTERY_OPT) askForOverlay()
+    }
+
+    /**
+     * The find-my-phone reply needs location ON all the time. If someone turned it
+     * off, say so out loud (once per app-open) and keep a tappable banner up top
+     * until it's back on.
+     */
+    private fun checkLocation() {
+        val lm = getSystemService(LocationManager::class.java) ?: return
+        val on = runCatching { lm.isProviderEnabled(LocationManager.GPS_PROVIDER) }.getOrDefault(false) ||
+            runCatching { lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) }.getOrDefault(false)
+        if (on) {
+            locationBanner?.visibility = View.GONE
+            return
+        }
+        ensureLocationBanner().visibility = View.VISIBLE
+        if (!warnedLocationOff) {
+            warnedLocationOff = true
+            Announcer.get(this).say("లొకేషన్ ఆఫ్ అయ్యింది, ఆన్ చేయండి")
+        }
+    }
+
+    /** Built in code (not XML) so the home layout stays untouched. */
+    private fun ensureLocationBanner(): TextView {
+        locationBanner?.let { return it }
+        val banner = TextView(this).apply {
+            text = "📍 లొకేషన్ ఆన్ చేయండి · Turn location ON"
+            setBackgroundColor(Color.parseColor("#C62828"))
+            setTextColor(Color.WHITE)
+            textSize = 20f
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            gravity = android.view.Gravity.CENTER
+            setOnClickListener {
+                runCatching {
+                    startActivity(Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                }
             }
         }
+        // Root column inside the ScrollView — insert the banner as the first row.
+        val root = findViewById<View>(R.id.grid).parent as LinearLayout
+        root.addView(
+            banner, 0,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+        locationBanner = banner
+        return banner
     }
 
     override fun onRequestPermissionsResult(
@@ -272,11 +369,16 @@ class MainActivity : Activity() {
     companion object {
         private const val REQ_CALL = 101
         private const val REQ_STARTUP = 103
+        private const val REQ_BATTERY_OPT = 104
+
+        private const val FLAG_PERMS_ASKED = "perms_requested"
+        private const val FLAG_OVERLAY_ASKED = "overlay_requested"
 
         // All the runtime permissions the companion needs, asked together on first run.
         private val STARTUP_PERMISSIONS = arrayOf(
             Manifest.permission.CALL_PHONE,          // one-tap calling
             Manifest.permission.READ_PHONE_STATE,    // announce who's calling
+            Manifest.permission.READ_CONTACTS,       // announce names from the PHONE's contact book
             Manifest.permission.RECEIVE_SMS,         // find-my-phone
             Manifest.permission.SEND_SMS,            // grandpa location reply
             Manifest.permission.ACCESS_FINE_LOCATION,// grandpa location reply
