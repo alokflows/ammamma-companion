@@ -1,8 +1,10 @@
 package com.ammamma.companion
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -11,6 +13,7 @@ import android.os.BatteryManager
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 
 /**
@@ -38,8 +41,49 @@ class CompanionService : Service() {
         startAsForeground()
         announcer = Announcer.get(applicationContext)
         battery = BatteryWatcher(announcer).also { registerReceiver(it, it.filter()) }
+        armWatchdog()
         Log.i(TAG, "Companion service started; battery watcher registered")
     }
+
+    /**
+     * She swiped the app away (or ColorOS "cleaned" it). The service dies with the
+     * task — so before that, arm an alarm that restarts us 1.5s later. To Ammamma
+     * the companion simply never goes away.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        am.setExact(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            SystemClock.elapsedRealtime() + 1_500,
+            restartIntent(this, REQ_RESURRECT)
+        )
+        Log.i(TAG, "Task removed -> resurrection alarm armed")
+        super.onTaskRemoved(rootIntent)
+    }
+
+    /**
+     * Heartbeat: every ~15 min an alarm start-commands this service. If we're
+     * already running it's a harmless no-op; if ColorOS silently killed us, it
+     * brings us back. Deliberately NEVER cancelled (not even in onDestroy) —
+     * being resurrected after a kill is the whole point.
+     */
+    private fun armWatchdog() {
+        val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        am.setInexactRepeating(
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
+            SystemClock.elapsedRealtime() + WATCHDOG_MS,
+            WATCHDOG_MS,
+            restartIntent(this, REQ_WATCHDOG)
+        )
+    }
+
+    private fun restartIntent(ctx: Context, requestCode: Int): PendingIntent =
+        PendingIntent.getForegroundService(
+            ctx,
+            requestCode,
+            Intent(ctx, CompanionService::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -139,6 +183,10 @@ class CompanionService : Service() {
     companion object {
         private const val TAG = "Ammamma"
         private const val NOTIFICATION_ID = 1
+
+        private const val WATCHDOG_MS = 15 * 60_000L    // heartbeat interval
+        private const val REQ_RESURRECT = 11            // distinct request codes so the
+        private const val REQ_WATCHDOG = 12             // two alarms never replace each other
 
         private const val CALLER_INTERVAL_MS = 5_000L   // repeat the name every 5s while ringing
         private const val CALLER_MAX_REPEATS = 12       // ~1 min safety cap
