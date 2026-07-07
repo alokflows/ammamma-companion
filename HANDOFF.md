@@ -86,6 +86,30 @@ Package `com.ammamma.companion` at `/Users/megha/AmmammaCompanion/app/src/main`.
 | `FindPhoneActivity.kt` | "ఇక్కడ ఉన్నా!" — loud alarm on STREAM_ALARM at max (sounds on silent) + vibrate, big Stop button. |
 | `res/layout/*`, `res/drawable/*` | Warm cream (#FBF3E8) / brown (#402A1C) theme, green (#1E8E3E) = call. Big text, rounded cards, per-person ring colors. |
 
+## 5a. v0.4 (2026-07-07) — the "day before leaving" hardening. EMULATOR-VERIFIED ✅
+Alok's real-device bug report → four parallel fix branches, merged + tested end-to-end:
+- **Caller voice over the ringtone**: STREAM_RING/NOTIFICATION ducked to ~25% while the name
+  repeats on max media; restored on answer/end. VERIFIED (log: "Ring ducked…", restore OK).
+- **Reads the PHONE's contact book**: app contacts → ContactsContract.PhoneLookup → unknown.
+  VERIFIED: device-only contact "Ravi" announced by name. Needs READ_CONTACTS (in first-run set).
+- **Find-my-phone made un-strandable**: alarm sound/vibration moved INTO CompanionService
+  (never an invisible activity again). Four stop paths: giant ఆపు button, full-screen/heads-up
+  notification ("Tap to stop"), opening the app auto-shows the stop screen (MainActivity.onResume),
+  3-minute auto-stop. Old alarm volume restored. ALL VERIFIED on emulator incl. escape hatch.
+- **Persistence (3 layers)**: BootReceiver (BOOT_COMPLETED + MY_PACKAGE_REPLACED — VERIFIED
+  post-reboot with zero touch), onTaskRemoved resurrection alarm (+1.5s), 15-min watchdog
+  setInexactRepeating (VERIFIED armed in dumpsys alarm). Recents-swipe: service unaffected.
+- **Battery fully customizable** (Settings): low % (def 20), urgent % (def 10), remind-every-N-min
+  (def 5), charged-enough % (def 100). Reminder-stop now follows the configured threshold.
+  VERIFIED: red card + spoken "ఛార్జ్ 18 శాతం…" at 18%, full alert at 100%.
+- **Demo section in Settings**: caller / low battery / battery full / charging screen / find-phone.
+- **Family numbers UI**: dynamic rows + "＋ ADD NUMBER" (same comma-separated pref underneath).
+- **Permissions once**: first-run storm runs a single time (setup_flags pref), then never re-asks;
+  battery-optimization + overlay asks sequenced once. Location-off → spoken warning + red banner.
+- **Warmer TTS**: best offline te-IN voice by quality, rate 0.92, accessibility audio attributes.
+- **SETUP_PHONE.md**: Alok's one-hour install checklist (ColorOS never-kill steps + 5 leave-tests).
+Signed release: `app/build/outputs/apk/release/app-release.apk` (~660 KB).
+
 ## 5. Status — built & EMULATOR-TESTED ✅
 - [x] Dev env + API-27 arm64 emulator mirroring the device
 - [x] Foreground service (verified `isForeground=true`)
