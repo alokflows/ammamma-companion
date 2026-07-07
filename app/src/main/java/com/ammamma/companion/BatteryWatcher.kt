@@ -15,14 +15,20 @@ import android.util.Log
  * foreground service. (ACTION_BATTERY_CHANGED cannot be declared in the manifest,
  * so a dynamic receiver tied to our always-alive service is the correct home.)
  *
- * We warn ONCE per threshold (not on every 1% tick) and reset the flags when the
- * phone is charged back up, so she is reminded but never nagged.
+ * All the levels come from [Settings] — the family tunes them, no rebuild:
+ *   - low % (default 20)      -> red card + repeating reminder
+ *   - critical % (default 10) -> a second, more urgent red card
+ *   - charged % (default 100) -> while charging, green "enough, unplug" card
+ *
+ * We warn ONCE per threshold (not on every 1% tick). The low warnings reset when
+ * the level recovers; the charged warning resets when the charger is pulled —
+ * one "take it off" per charge session, reminded but never nagged.
  */
 class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
 
-    private var warned20 = false
-    private var warned10 = false
-    private var warnedFull = false
+    private var warnedLow = false
+    private var warnedCritical = false
+    private var warnedCharged = false
 
     fun filter(): IntentFilter = IntentFilter().apply {
         addAction(Intent.ACTION_BATTERY_CHANGED)
@@ -42,6 +48,8 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
             Intent.ACTION_POWER_DISCONNECTED -> {
                 val pct = currentPercent(context)
                 ChargeState.onDisconnected()
+                // A new charge session gets a fresh "enough, unplug" announcement.
+                warnedCharged = false
                 // "Charger removed, now X percent."
                 announcer.announce("charger_removed", "ఛార్జర్ తీసేశారు, ఇప్పుడు $pct శాతం ఉంది")
             }
@@ -70,44 +78,53 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
 
         Log.i(TAG, "Battery $pct%, charging=$charging")
 
-        // --- Battery full: gentle "take me off the charger" ---
-        // Only when actually charging/full — 100% while UNPLUGGED is not "full".
-        if (charging && (status == BatteryManager.BATTERY_STATUS_FULL || pct >= 100)) {
-            if (!warnedFull) {
-                warnedFull = true
-                // "Charging is full, please remove the charger."
-                announcer.announce("battery_full", "ఛార్జింగ్ నిండింది, ఛార్జర్ తీసేయండి")
-                AlertActivity.show(context, "బ్యాటరీ నిండింది", green = true)
+        // --- Charging: "charged enough, take me off" at the family-set level ---
+        // Once per charge session (flag resets on unplug, not here — otherwise a
+        // level like 80% would re-announce on every following 1% tick).
+        val chargedAt = Settings.batteryChargedPercent(context)
+        if (charging && (status == BatteryManager.BATTERY_STATUS_FULL || pct >= chargedAt)) {
+            if (!warnedCharged) {
+                warnedCharged = true
+                if (pct >= 100 || status == BatteryManager.BATTERY_STATUS_FULL) {
+                    // "Charging is full, please remove the charger."
+                    announcer.announce("battery_full", "ఛార్జింగ్ నిండింది, ఛార్జర్ తీసేయండి")
+                    AlertActivity.show(context, "బ్యాటరీ నిండింది", green = true)
+                } else {
+                    // "Charge is X percent — enough. Remove the charger."
+                    announcer.announce("battery_full", "ఛార్జ్ $pct శాతం అయ్యింది, సరిపోతుంది. ఛార్జర్ తీసేయండి")
+                    AlertActivity.show(context, "ఛార్జ్ $pct%\nసరిపోతుంది", green = true)
+                }
             }
             return
         }
-        warnedFull = false
 
         if (charging) {
-            // Plugged in: clear the warnings and silence the repeating reminder.
-            warned20 = false
-            warned10 = false
+            // Plugged in below the target: clear the low warnings and the reminder.
+            warnedLow = false
+            warnedCritical = false
             CompanionService.stopBatteryReminder(context)
             return
         }
 
-        // --- Discharging: warn at 10% then 20% (10% takes priority) ---
+        // --- Discharging: warn at the family-set levels (critical takes priority) ---
         // "Charge is X percent, please charge it." (percentage spoken so she knows)
-        if (pct <= 10 && !warned10) {
-            warned10 = true
-            announcer.announce("battery_low", "ఛార్జ్ $pct శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి")
+        val lowAt = Settings.batteryLowPercent(context)
+        val criticalAt = Settings.batteryCriticalPercent(context)
+        if (pct <= criticalAt && !warnedCritical) {
+            warnedCritical = true
+            announcer.announce("battery_low", "ఛార్జ్ $pct శాతం మాత్రమే ఉంది, వెంటనే ఛార్జ్ చేయండి")
             AlertActivity.show(context, "ఛార్జ్ $pct%\nఛార్జ్ చేయండి", green = false)
             CompanionService.startBatteryReminder(context)   // nag every N min until charged
-        } else if (pct <= 20 && !warned20) {
-            warned20 = true
+        } else if (pct <= lowAt && !warnedLow) {
+            warnedLow = true
             announcer.announce("battery_low", "ఛార్జ్ $pct శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి")
             AlertActivity.show(context, "ఛార్జ్ $pct%\nఛార్జ్ చేయండి", green = false)
             CompanionService.startBatteryReminder(context)
         }
 
-        // Reset flags once she's safely above each threshold again.
-        if (pct > 15) warned10 = false
-        if (pct > 25) warned20 = false
+        // Reset flags once she's safely (5 points) above each threshold again.
+        if (pct > criticalAt + 5) warnedCritical = false
+        if (pct > lowAt + 5) warnedLow = false
     }
 
     companion object {

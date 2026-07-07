@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Family-only settings (not for grandma). Plain English labels. -->
+<!-- Family-only settings (not for grandma). Bilingual Telugu · English labels. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -28,20 +28,73 @@
             android:textColor="#8A7361"
             android:textSize="14sp" />
 
-        <!-- Hear the offline caller announcement, on demand. -->
-        <Button
-            android:id="@+id/callerDemo"
+        <!-- ============ DEMOS: show the family every event on demand ============ -->
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:paddingVertical="14dp"
-            android:text="🔊 కాలర్ డెమో వినండి · Hear caller demo"
-            android:textSize="16sp" />
+            android:layout_marginTop="24dp"
+            android:text="డెమో · Demo"
+            android:textColor="#5A3720"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:text="Try every alert now — no need to wait for a real call or a flat battery."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/callerDemo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:paddingVertical="14dp"
+            android:text="🔊 కాలర్ డెమో · Caller demo"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/lowBatteryDemo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingVertical="14dp"
+            android:text="🪫 తక్కువ ఛార్జ్ డెమో · Low battery demo"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/fullBatteryDemo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingVertical="14dp"
+            android:text="🔋 ఛార్జ్ నిండింది డెమో · Battery full demo"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/chargingDemo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingVertical="14dp"
+            android:text="⚡ ఛార్జింగ్ తెర డెమో · Charging screen demo"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/findPhoneDemo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingVertical="14dp"
+            android:text="📢 ఫోన్ వెతుకు డెమో · Find-phone demo"
+            android:textSize="16sp" />
+
+        <!-- ============ FIND-PHONE ============ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
             android:text="ఫోన్ కనుక్కునే రహస్య పదం · Find-phone code word"
             android:textColor="#5A3720"
             android:textSize="15sp"
@@ -63,11 +116,12 @@
             android:inputType="text"
             android:textColor="#402A1C" />
 
+        <!-- ============ FAMILY NUMBERS (dynamic rows, built in code) ============ -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="కుటుంబ నంబర్లు · Family numbers (one per line)"
+            android:text="కుటుంబ నంబర్లు · Family numbers"
             android:textColor="#5A3720"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -79,21 +133,137 @@
             android:textColor="#8A7361"
             android:textSize="13sp" />
 
-        <EditText
-            android:id="@+id/familyNumbers"
+        <LinearLayout
+            android:id="@+id/numbersContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:gravity="top"
-            android:hint="+9199xxxxxxxx"
-            android:inputType="textMultiLine|phone"
-            android:minLines="2"
+            android:orientation="vertical" />
+
+        <Button
+            android:id="@+id/addNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingVertical="14dp"
+            android:text="＋ నంబర్ జోడించండి · Add number"
+            android:textSize="16sp" />
+
+        <!-- ============ BATTERY ALERT LEVELS ============ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="బ్యాటరీ హెచ్చరికలు · Battery alerts"
+            android:textColor="#5A3720"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="తక్కువ ఛార్జ్ స్థాయి (%) · Low battery level"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Below this %, she hears 'please charge' and sees the red card."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/battLow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="20"
+            android:inputType="number"
             android:textColor="#402A1C" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="14dp"
+            android:text="అత్యవసర స్థాయి (%) · Urgent level"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="A second, urgent warning. Always at or below the low level."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/battCritical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="10"
+            android:inputType="number"
+            android:textColor="#402A1C" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="గుర్తు చేసే విరామం (నిమిషాలు) · Remind every N minutes"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="How often it repeats 'please charge' until the charger is in."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/batteryMinutes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="5"
+            android:inputType="number"
+            android:textColor="#402A1C" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="ఛార్జ్ సరిపోయే స్థాయి (%) · Charged-enough level"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="While charging, announce 'enough — unplug' at this %. 100 = only when full."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/battCharged"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="100"
+            android:inputType="number"
+            android:textColor="#402A1C" />
+
+        <!-- ============ AI ============ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
             android:text="మాట్లాడు AI తాళం · AI key (OpenRouter)"
             android:textColor="#5A3720"
             android:textSize="15sp"
@@ -115,38 +285,13 @@
             android:inputType="textNoSuggestions"
             android:textColor="#402A1C" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="బ్యాటరీ గుర్తు (నిమిషాలు) · Battery reminder (minutes)"
-            android:textColor="#5A3720"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="How often it repeats 'please charge' until the charger is in."
-            android:textColor="#8A7361"
-            android:textSize="13sp" />
-
-        <EditText
-            android:id="@+id/batteryMinutes"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:hint="5"
-            android:inputType="number"
-            android:textColor="#402A1C" />
-
         <Button
             android:id="@+id/save"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
             android:paddingVertical="16dp"
-            android:text="Save"
+            android:text="సేవ్ · Save"
             android:textSize="20sp" />
 
     </LinearLayout>
