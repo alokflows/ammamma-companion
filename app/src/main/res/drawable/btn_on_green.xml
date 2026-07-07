@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Light "confirm" pill for use ON the dark-green charging screen, where a green
+     button would vanish. Cream fill + dark-green text pops cleanly and still reads
+     as the same affirmative family. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/ripple_dark">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/cream" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+</ripple>
