@@ -390,51 +390,25 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Works with any OpenAI-compatible provider (OpenRouter, Groq, OpenAI…). Paste the provider address and your key. Leave the model empty and the app picks the best one automatically, or tap 'Get models' to choose. Stored only on this phone."
+            android:text="Paste one API key. The provider is detected from the key (gsk_… = Groq, sk-or-… = OpenRouter, sk-… = OpenAI) — no address to type. Tap 'Get models ▾' beside a key to pick 'Auto (best)' or a specific model. Add a second key as a free backup if the first gets busy. Stored only on this phone."
             android:textColor="#8A7361"
             android:textSize="13sp" />
 
-        <EditText
-            android:id="@+id/aiBaseUrl"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:hint="https://openrouter.ai/api/v1"
-            android:inputType="textUri|textNoSuggestions"
-            android:textColor="#402A1C" />
-
-        <EditText
-            android:id="@+id/aiKey"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:hint="API key (sk-or-v1-...)"
-            android:inputType="textNoSuggestions"
-            android:textColor="#402A1C" />
-
+        <!-- One row per API key, built in code (key + Get models ▾ + remove). -->
         <LinearLayout
+            android:id="@+id/keysContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="vertical" />
 
-            <EditText
-                android:id="@+id/aiModel"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="Model (empty = best auto)"
-                android:inputType="textNoSuggestions"
-                android:textColor="#402A1C" />
-
-            <Button
-                android:id="@+id/fetchModels"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Get models" />
-        </LinearLayout>
+        <Button
+            android:id="@+id/addKey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:paddingVertical="12dp"
+            android:text="＋ మరో API key జోడించండి · Add another API key" />
 
         <Button
             android:id="@+id/testAi"
@@ -456,7 +430,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="When ON: every time the charger is plugged in or out, the phone silently texts its GPS location to ALL family numbers above. Turn on when she travels; needs SMS + location permission, no internet."
+            android:text="When ON: every time the charger is plugged in or out, the phone silently texts its GPS location to ALL family numbers above AND quietly takes a front + back photo (saved on the phone), showing only a small 'photo taken · message sent' note. The phone still speaks the normal charge line, so it looks ordinary. Turn on when she travels; needs SMS + location + camera permission, no internet."
             android:textColor="#8A7361"
             android:textSize="13sp" />
 

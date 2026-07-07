@@ -17,33 +17,59 @@ import java.util.Locale
  *   1. A pre-recorded family-voice clip for this event  ->  filesDir/clips/<key>.*
  *   2. Android TTS (Telugu if available) as a fallback for anything not recorded.
  *
- * The clip folder is empty until the family records voices (Alok's last step), so
- * today everything flows through TTS. When clips arrive, NO code changes — this
- * class just finds and plays them. That's the "swap voices without rebuild" promise.
+ * ── CONSISTENCY IS THE PROMISE ────────────────────────────────────────────────
+ * Ammamma cannot read, so "sometimes it speaks, sometimes it doesn't" is the worst
+ * possible bug: she stops trusting the phone. Three rules keep the voice reliable:
  *
- * Before any sound we raise media volume to max (so she always hears it), and
- * restore her previous volume when the sound finishes.
+ *   1. SELF-HEALING ENGINE. The TTS engine is created lazily and re-created if it
+ *      was ever torn down or never came up. A spoken line is NEVER silently dropped:
+ *      if the engine isn't ready yet, the line is queued and spoken from onInit.
+ *
+ *   2. THE ENGINE OUTLIVES THE SERVICE. The companion service is destroyed and
+ *      resurrected constantly on ColorOS (watchdog, task-removal). It must NOT tear
+ *      down this shared, app-scoped voice — doing so left every Activity holding a
+ *      dead engine that failed silently. The singleton lives for the whole process.
+ *
+ *   3. ONE STREAM WE CONTROL. Speech plays on STREAM_MUSIC, the exact stream we
+ *      raise to max before speaking — so "did I actually hear it?" never depends on
+ *      a separate accessibility-stream volume the app can't reliably set.
+ *
+ * The clip folder is empty until the family records voices, so today everything
+ * flows through TTS. When clips arrive, NO code changes — this class just finds and
+ * plays them.
  */
 class Announcer private constructor(private val context: Context) : TextToSpeech.OnInitListener {
 
     private val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var tts: TextToSpeech? = null
     private var ttsReady = false
-    // The engine starts ASYNCHRONOUSLY. If an incoming call resurrects the app,
-    // the very first announcement can arrive BEFORE onInit — speaking then fails
-    // silently and grandma hears nothing. So until init completes we queue the
-    // line here and speak it from onInit.
+
+    // The engine starts ASYNCHRONOUSLY. Until onInit runs we cannot speak, so any
+    // line that arrives first is remembered here and spoken the moment we're ready —
+    // grandma never loses a line to a cold start (e.g. a call right after boot).
     @Volatile private var initDone = false
     @Volatile private var pendingText: String? = null
+
     private var player: MediaPlayer? = null
+
+    // Volume save/restore is guarded so overlapping lines can't corrupt it: we save
+    // her level ONCE (when the first line starts) and only put it back when the voice
+    // is fully idle again — a stale onDone can never quiet a line that's still going.
     private var savedVolume = -1
-    private var savedAccessVolume = -1
-    // Ring-duck state: -1 means "not ducked". Kept separate from the media-volume
-    // save so answering a call restores the ringtone even mid-announcement.
+
+    // Ring-duck state: -1 means "not ducked". Separate from the media-volume save so
+    // answering a call restores the ringtone even in the middle of an announcement.
     private var savedRingVolume = -1
     private var savedNotifVolume = -1
 
     init {
+        createEngine()
+    }
+
+    /** Create (or re-create) the TTS engine. Safe to call repeatedly. */
+    private fun createEngine() {
+        initDone = false
+        ttsReady = false
         tts = TextToSpeech(context, this)
     }
 
@@ -62,24 +88,24 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
         // Slightly slower than default = clearer for an elderly listener; normal pitch.
         tts?.setSpeechRate(0.92f)
         tts?.setPitch(1.0f)
-        // Mark our speech as accessibility assistance: the system treats it as
-        // important spoken output (not casual media), and it survives silent mode
-        // better on some builds.
+        // Speak as ordinary MEDIA: it plays on STREAM_MUSIC, the one stream we raise
+        // to max in raiseVolumeToMax(). (We used to use the accessibility stream,
+        // whose volume the app can't always set — so speech was sometimes inaudible.)
         try {
             tts?.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
             )
         } catch (e: Exception) {
             Log.w(TAG, "TTS audio attributes not accepted by this engine", e)
         }
-        // Restore volume once TTS finishes speaking.
+        // Restore volume when TTS finishes — but only if nothing else is speaking.
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {}
-            override fun onDone(utteranceId: String?) = restoreVolume()
-            @Deprecated("legacy") override fun onError(utteranceId: String?) = restoreVolume()
+            override fun onDone(utteranceId: String?) = restoreVolumeIfIdle()
+            @Deprecated("legacy") override fun onError(utteranceId: String?) = restoreVolumeIfIdle()
         })
 
         // Engine is ready — say anything that arrived while it was starting up.
@@ -115,9 +141,9 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
      * is what TTS says if there's no clip yet.
      */
     fun announce(eventKey: String, fallbackText: String) {
-        raiseVolumeToMax()
         val clip = findClip(eventKey)
         if (clip != null) {
+            raiseVolumeToMax()
             playClip(clip)
         } else {
             speak(fallbackText)
@@ -126,7 +152,6 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
 
     /** Speak arbitrary text (e.g. a live AI reply) via TTS — no clip lookup. */
     fun say(text: String) {
-        raiseVolumeToMax()
         speak(text)
     }
 
@@ -141,69 +166,64 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
             player?.release()
             player = MediaPlayer().apply {
                 setDataSource(file.absolutePath)
-                setOnCompletionListener { restoreVolume() }
+                setOnCompletionListener { restoreVolumeIfIdle() }
                 prepare()
                 start()
             }
             Log.i(TAG, "Playing clip ${file.name}")
         } catch (e: Exception) {
             Log.e(TAG, "Clip play failed for ${file.name}; restoring volume", e)
-            restoreVolume()
+            restoreVolumeIfIdle()
         }
     }
 
     private fun speak(text: String) {
+        if (text.isBlank()) return
+        // SELF-HEAL: if the engine was never created or got torn down, bring it back.
+        // The line is then queued and spoken from onInit — never dropped.
+        if (tts == null) {
+            Log.w(TAG, "TTS engine was gone; re-creating it")
+            createEngine()
+        }
         if (!initDone) {
             pendingText = text
             Log.i(TAG, "TTS still starting; queued: \"$text\"")
             return
         }
+        raiseVolumeToMax()
         val r = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "announce")
         if (r == TextToSpeech.SUCCESS) {
             Log.i(TAG, "TTS speaking: \"$text\"")
-            // volume restored by the utterance listener's onDone
+            // volume restored by the utterance listener's onDone (when idle)
         } else {
             Log.w(TAG, "No voice available to say: \"$text\" (result=$r)")
-            restoreVolume()
+            restoreVolumeIfIdle()
         }
     }
 
     private fun raiseVolumeToMax() {
+        // Save her level ONCE per burst of speech; overlapping lines must not stack
+        // saves (which would later restore to an already-raised value).
         if (savedVolume < 0) savedVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
-        audio.setStreamVolume(
-            AudioManager.STREAM_MUSIC,
-            audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
-            0
-        )
-        // TTS now plays on the ACCESSIBILITY stream (see the audio attributes in
-        // onInit), which has its own volume on Android 8 — raise it too so speech
-        // is as loud as the recorded clips.
-        try {
-            if (savedAccessVolume < 0) {
-                savedAccessVolume = audio.getStreamVolume(AudioManager.STREAM_ACCESSIBILITY)
-            }
+        runCatching {
             audio.setStreamVolume(
-                AudioManager.STREAM_ACCESSIBILITY,
-                audio.getStreamMaxVolume(AudioManager.STREAM_ACCESSIBILITY),
+                AudioManager.STREAM_MUSIC,
+                audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
                 0
             )
-        } catch (e: Exception) {
-            Log.w(TAG, "Accessibility stream not adjustable here", e)
         }
     }
 
-    private fun restoreVolume() {
+    /**
+     * Put her media volume back — but ONLY when the voice is fully idle. A finished
+     * line whose onDone fires while a NEW line is still playing must not quiet it;
+     * that final line's own onDone (or stopSpeaking) does the restore instead.
+     */
+    private fun restoreVolumeIfIdle() {
+        if (isSpeaking()) return
         if (savedVolume >= 0) {
-            audio.setStreamVolume(AudioManager.STREAM_MUSIC, savedVolume, 0)
+            runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, savedVolume, 0) }
             savedVolume = -1
-        }
-        try {
-            if (savedAccessVolume >= 0) {
-                audio.setStreamVolume(AudioManager.STREAM_ACCESSIBILITY, savedAccessVolume, 0)
-                savedAccessVolume = -1
-            }
-        } catch (e: Exception) {
-            savedAccessVolume = -1
         }
     }
 
@@ -253,14 +273,6 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
         }
     }
 
-    /**
-     * Cut off whatever is currently being said, RIGHT NOW — for a dismiss/stop tap.
-     * Normally a line finishes on its own; this makes a button press silence it
-     * instantly. Stops the TTS utterance, stops+releases any playing clip, and puts
-     * every volume this class touched back the way she had it. Fully idempotent:
-     * safe to call when nothing is playing, and the next announce()/say() works
-     * normally afterwards (we only stop the utterance, we never shut the engine down).
-     */
     /** True while a line is being spoken, a clip is playing, or one is queued
      *  behind TTS startup. The caller-repeat loop checks this so a LONG name is
      *  never chopped mid-word by the next repeat. */
@@ -269,29 +281,29 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
             runCatching { tts?.isSpeaking == true }.getOrDefault(false) ||
             runCatching { player?.isPlaying == true }.getOrDefault(false)
 
+    /**
+     * Cut off whatever is being said RIGHT NOW — for a dismiss/stop tap. Stops the
+     * TTS utterance, stops+releases any playing clip, and puts every volume back.
+     * Fully idempotent, and the ENGINE STAYS ALIVE: the next announce()/say() works
+     * normally. (We never shut the engine down here — that was the old flakiness.)
+     */
     fun stopSpeaking() {
         pendingText = null   // a line still waiting for TTS startup must die too
         runCatching { tts?.stop() }
         player?.run { runCatching { if (isPlaying) stop() }; release() }
         player = null
-        // restoreVolume + restoreRing already no-op when their saved state is -1.
-        restoreVolume()
+        // Now truly idle → these actually restore (isSpeaking() is false).
+        restoreVolumeIfIdle()
         restoreRing()
         Log.i(TAG, "stopSpeaking(): announcement cut off, volumes restored")
-    }
-
-    fun shutdown() {
-        tts?.stop(); tts?.shutdown(); tts = null
-        player?.release(); player = null
-        // Drop the cached singleton so a fresh service gets a working engine.
-        synchronized(Companion) { if (instance === this) instance = null }
     }
 
     companion object {
         private const val TAG = "Ammamma"
 
         // One voice for the whole app — the service and every screen share it, so we
-        // never run two TTS engines at once or talk over ourselves.
+        // never run two TTS engines at once or talk over ourselves. It lives for the
+        // whole process; nothing tears it down (see rule 2 in the class header).
         @Volatile
         private var instance: Announcer? = null
 

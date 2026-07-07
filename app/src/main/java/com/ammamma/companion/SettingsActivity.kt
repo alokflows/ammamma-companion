@@ -34,9 +34,7 @@ import android.widget.Toast
 class SettingsActivity : Activity() {
 
     private lateinit var codeWord: EditText
-    private lateinit var aiKey: EditText
-    private lateinit var aiBaseUrl: EditText
-    private lateinit var aiModel: EditText
+    private lateinit var keysContainer: LinearLayout
     private lateinit var batteryMinutes: EditText
     private lateinit var battLow: EditText
     private lateinit var battCritical: EditText
@@ -51,14 +49,19 @@ class SettingsActivity : Activity() {
     private lateinit var permsContainer: LinearLayout
     private val permRows = mutableListOf<Pair<PermItem, ImageView>>()
 
+    // One AI key per row: the key field, the model it should use ("" = Auto/best),
+    // and the little label under it showing "Provider · Model".
+    private class KeyRow(val view: View, val keyEdit: EditText, val label: TextView) {
+        var model: String = ""
+    }
+    private val keyRows = mutableListOf<KeyRow>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
         codeWord = findViewById(R.id.codeWord)
-        aiKey = findViewById(R.id.aiKey)
-        aiBaseUrl = findViewById(R.id.aiBaseUrl)
-        aiModel = findViewById(R.id.aiModel)
+        keysContainer = findViewById(R.id.keysContainer)
         batteryMinutes = findViewById(R.id.batteryMinutes)
         battLow = findViewById(R.id.battLow)
         battCritical = findViewById(R.id.battCritical)
@@ -71,10 +74,12 @@ class SettingsActivity : Activity() {
 
         // Pre-fill with whatever is saved.
         codeWord.setText(Settings.codeWordRaw(this))
-        aiKey.setText(Settings.aiKey(this))
-        aiBaseUrl.setText(Settings.aiBaseUrlRaw(this))   // empty shows the hint = default
-        aiModel.setText(Settings.aiModel(this))
         batteryMinutes.setText(Settings.batteryReminderRaw(this))
+
+        // AI keys: one row per saved key (a single empty row when none yet).
+        val savedKeys = Settings.aiAccounts(this)
+        if (savedKeys.isEmpty()) addKeyRow("", "") else savedKeys.forEach { addKeyRow(it.key, it.model) }
+        findViewById<Button>(R.id.addKey).setOnClickListener { addKeyRow("", "") }
         battLow.setText(Settings.batteryLowRaw(this))
         battCritical.setText(Settings.batteryCriticalRaw(this))
         battCharged.setText(Settings.batteryChargedRaw(this))
@@ -104,44 +109,116 @@ class SettingsActivity : Activity() {
         findViewById<Button>(R.id.addNumber).setOnClickListener { addNumberRow("") }
 
         findViewById<Button>(R.id.save).setOnClickListener { save() }
-        findViewById<Button>(R.id.fetchModels).setOnClickListener { fetchModelList() }
         findViewById<Button>(R.id.testAi).setOnClickListener { testAi() }
         wireDemos()
         buildPermissionRows()
     }
 
-    // --- AI: live model list + on-phone test, so a wrong key or dead model is
-    //     diagnosed HERE, not discovered as a mystery "busy" during a chat ---
+    // --- AI: one row per key. Each row has a "Get models ▾" that lets the family
+    //     choose "Auto (best)" or a specific model. A live "Test AI" diagnoses a
+    //     wrong key or dead model HERE, not as a mystery "busy" during a chat. ---
 
-    /** Both AI buttons first persist what's typed, so they test the screen, not stale prefs. */
-    private fun saveAiFields() {
-        Settings.saveAiConfig(
-            this,
-            aiBaseUrl.text.toString(),
-            aiModel.text.toString(),
-            aiKey.text.toString()
-        )
-        AiBrain.forgetAutoModel()   // provider/key may have changed — re-pick fresh
+    /** Persist the on-screen key rows so buttons test the screen, not stale prefs. */
+    private fun saveAiAccounts() {
+        Settings.saveAiAccounts(this, collectAccounts())
+        AiBrain.forgetAutoModel()   // provider/key/model may have changed — re-pick fresh
     }
 
-    private fun fetchModelList() {
-        saveAiFields()
+    private fun collectAccounts(): List<AiAccount> =
+        keyRows.mapNotNull { row ->
+            val k = row.keyEdit.text.toString().trim()
+            if (k.isEmpty()) null else AiAccount(k, row.model)
+        }
+
+    /** Build one key row: [key field] [Get models ▾] [✕] with a "Provider · Model" label. */
+    private fun addKeyRow(prefillKey: String, prefillModel: String) {
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(6), 0, dp(6))
+        }
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val keyEdit = EditText(this).apply {
+            hint = "API key (gsk_… / sk-or-… / sk-…)"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            setText(prefillKey)
+            setTextColor(Color.parseColor("#402A1C"))
+            textSize = 14f
+        }
+        val label = TextView(this).apply {
+            setTextColor(Color.parseColor("#8A7361"))
+            textSize = 13f
+            setPadding(dp(2), dp(2), 0, 0)
+        }
+        val row = KeyRow(col, keyEdit, label).apply { model = prefillModel.trim() }
+
+        val getModels = Button(this).apply {
+            text = "Get models ▾"
+            textSize = 12f
+            setOnClickListener { fetchModelsForRow(row) }
+        }
+        val remove = Button(this).apply {
+            text = "✕"
+            textSize = 18f
+            setOnClickListener {
+                keysContainer.removeView(col)
+                keyRows.remove(row)
+            }
+        }
+        // Keep the "Groq · …" label truthful as the key is typed/pasted.
+        keyEdit.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) = updateRowLabel(row)
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+
+        top.addView(keyEdit, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        top.addView(getModels, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6) })
+        top.addView(remove, LinearLayout.LayoutParams(dp(48), dp(48)))
+        col.addView(top)
+        col.addView(label)
+        keysContainer.addView(col)
+        keyRows.add(row)
+        updateRowLabel(row)
+    }
+
+    private fun updateRowLabel(row: KeyRow) {
+        val provider = Settings.providerLabel(row.keyEdit.text.toString())
+        val modelLabel = if (row.model.isBlank()) "Auto (best model)" else row.model
+        row.label.text = when {
+            provider.isEmpty() -> "Paste a key — Groq (gsk_…) recommended"
+            else -> "$provider · $modelLabel"
+        }
+    }
+
+    private fun fetchModelsForRow(row: KeyRow) {
+        val key = row.keyEdit.text.toString().trim()
+        if (key.isEmpty()) {
+            Toast.makeText(this, "Paste the key first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        saveAiAccounts()
         Toast.makeText(this, "Fetching models…", Toast.LENGTH_SHORT).show()
         Thread {
-            val r = AiBrain.fetchModels(this)
+            val r = AiBrain.fetchModels(key)
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 if (!r.ok) {
                     showAiDialog("Could not get models", r.error)
                     return@runOnUiThread
                 }
-                val ids = r.ids.toTypedArray()
+                // First choice is always Auto; the rest are the live model list (best first).
+                val display = arrayOf("✨ Auto — best model (recommended)") + r.ids.toTypedArray()
                 AlertDialog.Builder(this)
-                    .setTitle("Pick a model (${ids.size})")
-                    .setItems(ids) { _, which ->
-                        aiModel.setText(ids[which])
-                        saveAiFields()
-                        Toast.makeText(this, "Model set: ${ids[which]}", Toast.LENGTH_SHORT).show()
+                    .setTitle("Model for this key (${r.ids.size})")
+                    .setItems(display) { _, which ->
+                        row.model = if (which == 0) "" else r.ids[which - 1]
+                        updateRowLabel(row)
+                        saveAiAccounts()
+                        val what = if (which == 0) "Auto (best)" else r.ids[which - 1]
+                        Toast.makeText(this, "Set: $what", Toast.LENGTH_SHORT).show()
                     }
                     .setNegativeButton("Cancel", null)
                     .show()
@@ -150,7 +227,7 @@ class SettingsActivity : Activity() {
     }
 
     private fun testAi() {
-        saveAiFields()
+        saveAiAccounts()
         Toast.makeText(this, "Testing…", Toast.LENGTH_SHORT).show()
         Thread {
             val r = AiBrain.ask(this, "నమస్తే")
@@ -240,10 +317,10 @@ class SettingsActivity : Activity() {
             this,
             codeWord.text.toString(),
             collectNumbers(),
-            aiKey.text.toString(),
+            collectAccounts().firstOrNull()?.key.orEmpty(),
             batteryMinutes.text.toString()
         )
-        saveAiFields()
+        saveAiAccounts()
         Settings.saveBatteryLevels(
             this,
             battLow.text.toString(),
@@ -262,7 +339,8 @@ class SettingsActivity : Activity() {
         val needed = listOf(
             Manifest.permission.RECEIVE_SMS,
             Manifest.permission.SEND_SMS,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.CAMERA
         ).filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
 
         if (needed.isNotEmpty()) {
@@ -344,6 +422,12 @@ class SettingsActivity : Activity() {
             "మైక్రోఫోన్ · Microphone",
             { granted(Manifest.permission.RECORD_AUDIO) },
             { requestGroup(Manifest.permission.RECORD_AUDIO) }
+        ),
+        // Theft guard photographs whoever handles the phone in Travel mode.
+        PermItem(
+            "కెమెరా · Camera",
+            { granted(Manifest.permission.CAMERA) },
+            { requestGroup(Manifest.permission.CAMERA) }
         ),
         PermItem(
             "బ్యాటరీ నియంత్రణ లేదు · Battery unrestricted",

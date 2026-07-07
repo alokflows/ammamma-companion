@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -49,7 +50,10 @@ class TalkActivity : Activity(), RecognitionListener {
             if (actionId == EditorInfo.IME_ACTION_SEND) { sendTyped(); true } else false
         }
 
-        Announcer.get(this).announce("talk_greeting", "Cheppamma, emi kavali")
+        // Telugu SCRIPT, not romanized — a te-IN TTS voice mangles Latin text, which
+        // is exactly the "sometimes it sounds bad" inconsistency. "Tell me, what do
+        // you need?"
+        Announcer.get(this).announce("talk_greeting", "చెప్పమ్మా, ఏం కావాలి")
     }
 
     private fun sendTyped() {
@@ -111,30 +115,41 @@ class TalkActivity : Activity(), RecognitionListener {
         recognizer?.startListening(intent)
     }
 
-    /** She said (or typed) [text]; get a warm Telugu reply, show it and speak it. */
+    /** She said (or typed) [text]; route it to a command or a warm Telugu reply. */
     private fun handleUtterance(text: String) {
         status.text = "ఆలోచిస్తోంది…"   // thinking
         reply.text = text
         bg.execute {
-            // If she's asking about the weather, fetch today's facts for her town and let
-            // the brain phrase them warmly in Telugu. Fetch fails silently → normal chat.
+            // Weather questions still get today's facts folded in for a warm answer.
             val weather = if (Weather.isWeatherQuestion(text)) Weather.factsForBrain() else null
-            val r = AiBrain.ask(this, text, weather)
+            val action = CommandRouter.resolve(this, text, weather)
             main.post {
-                if (r.ok) {
-                    status.text = ""
-                    reply.text = r.text
-                    Announcer.get(this).say(r.text)
-                } else {
-                    // Never silently drop what she said — show it AND speak the reason aloud,
-                    // because a text-only error is invisible to her (r.text is warm Telugu).
-                    // The technical detail is printed small for the FAMILY: grandma can't
-                    // read it, but whoever debugs the phone sees the real cause on-screen.
-                    // No raw HTTP detail on HER screen (it scared the grandma tester);
-                    // the family diagnoses with Settings -> Test AI, which shows it all.
-                    status.text = "మళ్ళీ ప్రయత్నించండి"
-                    reply.text = "మీరు: $text\n\n${r.text}"
-                    Announcer.get(this).say(r.text)
+                // She cannot read — EVERY branch speaks. That is the consistency promise.
+                val voice = Announcer.get(this)
+                when (action) {
+                    is CommandRouter.Action.Say -> {
+                        status.text = ""
+                        reply.text = action.spoken
+                        voice.say(action.spoken)
+                    }
+                    is CommandRouter.Action.Call -> {
+                        status.text = ""
+                        reply.text = action.spoken
+                        voice.say(action.spoken)
+                        try {
+                            startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:${action.number}"))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        } catch (e: SecurityException) {
+                            voice.say("ఫోన్ చేయడానికి అనుమతి లేదు")
+                        }
+                    }
+                    is CommandRouter.Action.Launch -> {
+                        status.text = ""
+                        reply.text = action.spoken
+                        voice.say(action.spoken)
+                        try { startActivity(action.intent) }
+                        catch (e: Exception) { voice.say("అది తెరవడం కుదరలేదు") }
+                    }
                 }
             }
         }

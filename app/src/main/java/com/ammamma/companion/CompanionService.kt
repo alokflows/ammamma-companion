@@ -312,7 +312,10 @@ class CompanionService : Service() {
         stopCallerLoop()
         stopBatteryLoop()
         stopFindAlarmNow()   // never leave the alarm orphaned if the service dies
-        if (::announcer.isInitialized) announcer.shutdown()
+        // Only silence the CURRENT line — do NOT shut the shared voice down. This
+        // service is destroyed and resurrected constantly on ColorOS; tearing down
+        // the app-wide TTS engine here is what left screens speaking nothing.
+        if (::announcer.isInitialized) announcer.stopSpeaking()
         super.onDestroy()
     }
 

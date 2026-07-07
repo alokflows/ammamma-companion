@@ -1,11 +1,23 @@
 package com.ammamma.companion
 
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * One AI account: an API key and, optionally, a specific model to use. The provider
+ * (and its base URL) is worked out from the key prefix — the family never types a
+ * URL. A blank [model] means "Auto" — the app picks the best model for that provider.
+ */
+data class AiAccount(val key: String, val model: String = "") {
+    val base: String get() = Settings.baseForKey(key)
+    val providerLabel: String get() = Settings.providerLabel(key)
+}
 
 /**
  * All the family-editable settings, kept in one small SharedPreferences file.
  *
- * This is the "no rebuild needed" layer: the Gemini API key, the find-my-phone
+ * This is the "no rebuild needed" layer: the AI API keys, the find-my-phone
  * code word, and the allowed family numbers all live here, changed from the
  * Settings screen — never in code.
  */
@@ -13,9 +25,10 @@ object Settings {
     private const val PREFS = "ammamma_settings"
     private const val KEY_CODE = "code_word"
     private const val KEY_NUMBERS = "family_numbers"
-    private const val KEY_AI = "ai_key"          // API key for the chosen provider
-    private const val KEY_AI_BASE = "ai_base_url" // OpenAI-compatible base URL
-    private const val KEY_AI_MODEL = "ai_model"   // chosen model id ("" = auto/fallback)
+    private const val KEY_AI = "ai_key"          // legacy single API key (migrated to accounts)
+    private const val KEY_AI_BASE = "ai_base_url" // legacy base URL (migrated)
+    private const val KEY_AI_MODEL = "ai_model"   // legacy model id (migrated)
+    private const val KEY_AI_ACCOUNTS = "ai_accounts" // JSON list of {key, model}; the real source now
     private const val KEY_TRAVEL = "travel_mode"  // SMS location ping on charger events
     private const val KEY_BATT_MIN = "battery_reminder_min"
     private const val KEY_BATT_LOW = "battery_low_pct"          // warn below this %
@@ -48,33 +61,72 @@ object Settings {
             .map { it.filter { ch -> ch.isDigit() || ch == '+' } }
             .filter { it.length >= 4 }
 
-    fun aiKey(c: Context): String = prefs(c).getString(KEY_AI, "").orEmpty().trim()
-
     const val DEFAULT_AI_BASE = "https://openrouter.ai/api/v1"
 
-    /** Base URL of any OpenAI-compatible provider. Blank = OpenRouter. Always
-     *  returned scheme-prefixed and without a trailing slash, so callers can
-     *  just append /chat/completions or /models. */
-    fun aiBaseUrl(c: Context): String {
-        val raw = prefs(c).getString(KEY_AI_BASE, "").orEmpty().trim().trimEnd('/')
-        if (raw.isEmpty()) return DEFAULT_AI_BASE
-        return if (raw.startsWith("http")) raw else "https://$raw"
+    /** The OpenAI-compatible base URL for a key, worked out from its prefix so the
+     *  family never types a URL. Returned without a trailing slash so callers can
+     *  append /chat/completions or /models. */
+    fun baseForKey(key: String): String {
+        val k = key.trim()
+        return when {
+            k.startsWith("gsk_") -> "https://api.groq.com/openai/v1"       // Groq
+            k.startsWith("sk-or-") -> "https://openrouter.ai/api/v1"       // OpenRouter
+            k.startsWith("sk-") -> "https://api.openai.com/v1"             // OpenAI
+            else -> DEFAULT_AI_BASE                                        // safe default
+        }
     }
 
-    /** The model the family picked from the provider's live list. "" = auto. */
-    fun aiModel(c: Context): String = prefs(c).getString(KEY_AI_MODEL, "").orEmpty().trim()
+    /** Friendly provider name for a key, shown next to the key row. */
+    fun providerLabel(key: String): String {
+        val k = key.trim()
+        return when {
+            k.isEmpty() -> ""
+            k.startsWith("gsk_") -> "Groq"
+            k.startsWith("sk-or-") -> "OpenRouter"
+            k.startsWith("sk-") -> "OpenAI"
+            else -> "Custom"
+        }
+    }
 
-    /** Save the AI trio together — the Test/Get-models buttons call this first so
-     *  they always use what's typed on screen, never stale prefs. */
-    fun saveAiConfig(c: Context, baseUrl: String, model: String, key: String) {
+    /**
+     * The AI accounts, in try-order. AiBrain uses the first that answers and falls
+     * through to the next on a rate-limit/failure — so a second free key is a cheap
+     * safety net. Blank-key entries are dropped. Migrates any older single-key setup.
+     */
+    fun aiAccounts(c: Context): List<AiAccount> {
+        val raw = prefs(c).getString(KEY_AI_ACCOUNTS, null)
+        if (raw != null) {
+            return try {
+                val arr = JSONArray(raw)
+                (0 until arr.length()).mapNotNull { i ->
+                    val o = arr.getJSONObject(i)
+                    val key = o.optString("key").trim()
+                    if (key.isEmpty()) null else AiAccount(key, o.optString("model").trim())
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+        // Migrate a pre-accounts install: fold the old single key/model into one account.
+        val legacyKey = prefs(c).getString(KEY_AI, "").orEmpty().trim()
+        val legacyModel = prefs(c).getString(KEY_AI_MODEL, "").orEmpty().trim()
+        return if (legacyKey.isEmpty()) emptyList() else listOf(AiAccount(legacyKey, legacyModel))
+    }
+
+    fun saveAiAccounts(c: Context, accounts: List<AiAccount>) {
+        val arr = JSONArray()
+        accounts.filter { it.key.isNotBlank() }.forEach {
+            arr.put(JSONObject().put("key", it.key.trim()).put("model", it.model.trim()))
+        }
+        // Mirror the first key into the legacy field so any old code path still finds one.
         prefs(c).edit()
-            .putString(KEY_AI_BASE, baseUrl.trim())
-            .putString(KEY_AI_MODEL, model.trim())
-            .putString(KEY_AI, key.trim())
+            .putString(KEY_AI_ACCOUNTS, arr.toString())
+            .putString(KEY_AI, accounts.firstOrNull { it.key.isNotBlank() }?.key?.trim().orEmpty())
             .apply()
     }
 
-    fun aiBaseUrlRaw(c: Context) = prefs(c).getString(KEY_AI_BASE, "").orEmpty()
+    /** First saved key — used only as a quick "is AI set up at all?" gate. */
+    fun aiKey(c: Context): String = aiAccounts(c).firstOrNull()?.key.orEmpty()
 
     /** Travel mode: on every charger plug/unplug, silently SMS the phone's GPS
      *  location to all family numbers. Off by default. */

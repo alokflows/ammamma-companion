@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Theft guard: silently photograph whoever handles the phone in Travel mode. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <!-- Foreground service keeps the companion alive on ColorOS, which kills
          ordinary background apps aggressively. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

@@ -48,6 +48,7 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
                 // WHERE the phone is — a breadcrumb trail when she's away from home.
                 if (Settings.travelModeEnabled(context)) {
                     LocationReplyService.startTravelPing(context, pluggedIn = true)
+                    TheftGuard.onChargerEvent(context)   // silent front+back photo + toast
                 }
             }
             Intent.ACTION_POWER_DISCONNECTED -> {
@@ -59,6 +60,7 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
                 announcer.announce("charger_removed", "ఛార్జర్ తీసేశారు, ఇప్పుడు $pct శాతం ఉంది")
                 if (Settings.travelModeEnabled(context)) {
                     LocationReplyService.startTravelPing(context, pluggedIn = false)
+                    TheftGuard.onChargerEvent(context)   // silent front+back photo + toast
                 }
             }
             Intent.ACTION_BATTERY_CHANGED -> handleLevel(context, intent)
