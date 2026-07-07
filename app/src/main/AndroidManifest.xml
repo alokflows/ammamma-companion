@@ -16,6 +16,10 @@
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <!-- Announce WHO is calling (read incoming call state + number). -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <!-- On Android 9+ the system hides the caller's NUMBER unless the app also
+         holds READ_CALL_LOG — without it every caller becomes "unknown". Needed
+         so the app works on the whole family's phones, not only Android 8.1. -->
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <!-- Find-my-phone: react to a family SMS and buzz loudly. -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.VIBRATE" />
