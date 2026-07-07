@@ -57,6 +57,8 @@ class CompanionService : Service() {
     // --- CALLER: repeat while ringing ---
     private fun startCallerLoop(key: String, text: String) {
         stopCallerLoop()
+        // Quiet the ringtone (never silence it) so the spoken name wins over it.
+        announcer.duckRingForSpeech()
         callerCount = 0
         val r = object : Runnable {
             override fun run() {
@@ -73,6 +75,9 @@ class CompanionService : Service() {
     private fun stopCallerLoop() {
         callerLoop?.let { handler.removeCallbacks(it) }
         callerLoop = null
+        // ALWAYS restore her ring volume (no-op if nothing was ducked) — answered,
+        // ended, or the safety cap: the ringtone goes back exactly as she had it.
+        announcer.restoreRing()
     }
 
     // --- BATTERY LOW: repeat every N minutes until charging ---
