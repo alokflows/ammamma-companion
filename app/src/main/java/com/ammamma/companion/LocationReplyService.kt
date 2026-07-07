@@ -57,21 +57,17 @@ class LocationReplyService : Service() {
             return
         }
 
-        // 1) A cached fix is instant — use it if we have one.
-        bestLastKnown(lm)?.let {
-            reply(sender, it)
-            stopSelf()
-            return
-        }
-
-        // 2) Otherwise ask for one fresh fix, with a 20s timeout so we never hang.
+        // Prefer a FRESH fix: the last-known location can be hours (or days) old —
+        // exactly wrong for "where is the phone RIGHT NOW". We wait up to 10s for a
+        // real fix and only then fall back to whatever cached fix exists.
         val provider = when {
             lm.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
             lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
             else -> null
         }
         if (provider == null) {
-            reply(sender, null)
+            // Location is switched OFF — a stale cached fix is still better than nothing.
+            reply(sender, bestLastKnown(lm))
             stopSelf()
             return
         }
@@ -96,7 +92,7 @@ class LocationReplyService : Service() {
         }
 
         lm.requestSingleUpdate(provider, listener, thread.looper)
-        handler.postDelayed({ listener.finishWith(null) }, 20_000)
+        handler.postDelayed({ listener.finishWith(null) }, 10_000)
     }
 
     @SuppressLint("MissingPermission")
