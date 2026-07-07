@@ -90,6 +90,104 @@
             android:text="📢 ఫోన్ వెతుకు డెమో · Find-phone demo"
             android:textSize="16sp" />
 
+        <!-- ============ PERMISSIONS (rows built in code) ============ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="అనుమతులు · Permissions"
+            android:textColor="#5A3720"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Red items are missing — tap one to allow it."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <!-- Shown only when every permission is granted. -->
+        <TextView
+            android:id="@+id/permsAllGood"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:minHeight="48dp"
+            android:gravity="center_vertical"
+            android:text="అన్నీ ఉన్నాయి ✔ · All good"
+            android:textColor="#1E8E3E"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/permsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical" />
+
+        <!-- ============ CALLER ANNOUNCEMENT ============ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="కాలర్ ప్రకటన · Caller announcement"
+            android:textColor="#5A3720"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="When the phone rings, the name is spoken this often."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="ప్రతి N సెకన్లకు · Repeat every N seconds"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/callerSeconds"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="4"
+            android:inputType="number"
+            android:textColor="#402A1C" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="ఎన్ని సార్లు · How many times"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="1 = once."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/callerTimes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="12"
+            android:inputType="number"
+            android:textColor="#402A1C" />
+
         <!-- ============ FIND-PHONE ============ -->
         <TextView
             android:layout_width="match_parent"
@@ -148,6 +246,26 @@
             android:paddingVertical="14dp"
             android:text="＋ నంబర్ జోడించండి · Add number"
             android:textSize="16sp" />
+
+        <!-- ============ LOCATION SMS REPLY (applies immediately) ============ -->
+        <Switch
+            android:id="@+id/locationReplySwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="లొకేషన్ SMS జవాబు · Location SMS reply"
+            android:textColor="#5A3720"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="When family texts the code word, the phone also texts back where it is. Turn off to disable."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
 
         <!-- ============ BATTERY ALERT LEVELS ============ -->
         <TextView

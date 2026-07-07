@@ -18,7 +18,6 @@ object Settings {
     private const val KEY_BATT_LOW = "battery_low_pct"          // warn below this %
     private const val KEY_BATT_CRIT = "battery_critical_pct"    // urgent warn below this %
     private const val KEY_BATT_CHARGED = "battery_charged_pct"  // while charging, "enough" at this %
-
     private const val KEY_SMS_REPLY = "sms_reply_enabled"       // find-phone texts location back
     private const val KEY_CALLER_SECS = "caller_repeat_secs"    // gap between "X is calling" repeats
     private const val KEY_CALLER_REPEATS = "caller_max_repeats" // how many times the name is said

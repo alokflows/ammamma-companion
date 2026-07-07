@@ -70,6 +70,10 @@ class AlertActivity : Activity() {
         root.addView(Button(this).apply {
             text = "సరే"   // "OK"
             textSize = 34f
+            // Green = the safe, always-right tap (drawable shared with FindPhone's ఆపు).
+            setBackgroundResource(R.drawable.btn_primary_green)
+            setTextColor(Color.WHITE)
+            isAllCaps = false
             setOnClickListener {
                 // Silence any line still playing the instant she taps — don't let it
                 // finish on its own.
@@ -86,6 +90,8 @@ class AlertActivity : Activity() {
             root.addView(Button(this).apply {
                 text = "తర్వాత చెప్పు"   // "tell me later" (snooze)
                 textSize = 26f
+                setBackgroundResource(R.drawable.btn_outline)
+                isAllCaps = false
                 setOnClickListener {
                     Announcer.get(this@AlertActivity).stopSpeaking()
                     CompanionService.stopBatteryReminder(this@AlertActivity)
