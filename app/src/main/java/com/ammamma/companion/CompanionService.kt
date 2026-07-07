@@ -221,10 +221,19 @@ class CompanionService : Service() {
         val maxRepeats = Settings.callerMaxRepeats(this)
         val r = object : Runnable {
             override fun run() {
+                // A LONG name must finish before the next repeat starts — repeating
+                // on a fixed clock used to chop it mid-word. Check again shortly.
+                if (announcer.isSpeaking()) {
+                    handler.postDelayed(this, 800)
+                    return
+                }
+                if (callerCount >= maxRepeats) {
+                    stopCallerLoop()   // safety cap in case we miss the "idle" signal
+                    return
+                }
                 announcer.announce(key, text)
                 callerCount++
-                if (callerCount < maxRepeats) handler.postDelayed(this, intervalMs)
-                else stopCallerLoop()   // safety cap in case we miss the "idle" signal
+                handler.postDelayed(this, intervalMs)
             }
         }
         callerLoop = r
@@ -234,6 +243,10 @@ class CompanionService : Service() {
     private fun stopCallerLoop() {
         callerLoop?.let { handler.removeCallbacks(it) }
         callerLoop = null
+        // She answered (or the ring ended): the voice must go silent THIS INSTANT.
+        // Cancelling only the *next* repeat let the current sentence run on for a
+        // second or two over the live call — deeply confusing. Cut it off.
+        announcer.stopSpeaking()
         // ALWAYS restore her ring volume (no-op if nothing was ducked) — answered,
         // ended, or the safety cap: the ringtone goes back exactly as she had it.
         announcer.restoreRing()

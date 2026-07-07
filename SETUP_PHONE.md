@@ -23,6 +23,18 @@ leaving time to sit with her and show her the app.
 9. Settings → App Management → Ammamma tōḍu → Permissions → check everything
    is allowed (ColorOS sometimes silently revokes).
 
+## B2. Kill the SMS confirmation popup (2 min — do NOT skip)
+ColorOS shows its OWN "send SMS?" popup with a countdown whenever an app sends
+an SMS, even though the app already has the SMS permission. That popup confuses
+her and auto-cancels — so find-my-phone and travel-mode texts silently fail.
+The app itself sends silently; only this ColorOS guard is in the way:
+9b. Open the **Security / Phone Manager** app → **Privacy permissions** →
+    **App permissions** → **Ammamma tōḍu** → **Send SMS** → change from
+    "Ask" to **Allow**. (On some builds: Settings → App Management →
+    Ammamma tōḍu → Permissions → Send SMS → Allow.)
+9c. Test later in step F: the location text must arrive WITHOUT any popup
+    appearing on her phone.
+
 ## C. Voice quality (5 min)
 10. Settings → Additional Settings → Language & Input → Text-to-speech output →
     engine = **Google Text-to-speech**. Tap its ⚙ → Install voice data →

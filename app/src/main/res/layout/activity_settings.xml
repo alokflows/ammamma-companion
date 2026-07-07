@@ -382,7 +382,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
-            android:text="మాట్లాడు AI తాళం · AI key (OpenRouter)"
+            android:text="మాట్లాడు AI · Talk AI"
             android:textColor="#5A3720"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -390,18 +390,84 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Paste a free key from openrouter.ai/keys. Stored only on this phone. The Talk button uses it when internet is available."
+            android:text="Works with any OpenAI-compatible provider. Paste the provider address and your key, then tap 'Get models' to pick a model from the live list. Stored only on this phone."
             android:textColor="#8A7361"
             android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/aiBaseUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="https://openrouter.ai/api/v1"
+            android:inputType="textUri|textNoSuggestions"
+            android:textColor="#402A1C" />
 
         <EditText
             android:id="@+id/aiKey"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:hint="sk-or-v1-..."
+            android:hint="API key (sk-or-v1-...)"
             android:inputType="textNoSuggestions"
             android:textColor="#402A1C" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/aiModel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Model (empty = auto)"
+                android:inputType="textNoSuggestions"
+                android:textColor="#402A1C" />
+
+            <Button
+                android:id="@+id/fetchModels"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Get models" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/testAi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Test AI · పరీక్ష" />
+
+        <!-- ============ Travel mode ============ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="ప్రయాణ మోడ్ · Travel mode"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="When ON: every time the charger is plugged in or out, the phone silently texts its GPS location to ALL family numbers above. Turn on when she travels; needs SMS + location permission, no internet."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <Switch
+            android:id="@+id/travelSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="పంపించు · Send location on charger events"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
 
         <Button
             android:id="@+id/save"

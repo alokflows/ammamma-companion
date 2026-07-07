@@ -13,7 +13,10 @@ object Settings {
     private const val PREFS = "ammamma_settings"
     private const val KEY_CODE = "code_word"
     private const val KEY_NUMBERS = "family_numbers"
-    private const val KEY_AI = "ai_key"   // OpenRouter API key (sk-or-...)
+    private const val KEY_AI = "ai_key"          // API key for the chosen provider
+    private const val KEY_AI_BASE = "ai_base_url" // OpenAI-compatible base URL
+    private const val KEY_AI_MODEL = "ai_model"   // chosen model id ("" = auto/fallback)
+    private const val KEY_TRAVEL = "travel_mode"  // SMS location ping on charger events
     private const val KEY_BATT_MIN = "battery_reminder_min"
     private const val KEY_BATT_LOW = "battery_low_pct"          // warn below this %
     private const val KEY_BATT_CRIT = "battery_critical_pct"    // urgent warn below this %
@@ -46,6 +49,40 @@ object Settings {
             .filter { it.length >= 4 }
 
     fun aiKey(c: Context): String = prefs(c).getString(KEY_AI, "").orEmpty().trim()
+
+    const val DEFAULT_AI_BASE = "https://openrouter.ai/api/v1"
+
+    /** Base URL of any OpenAI-compatible provider. Blank = OpenRouter. Always
+     *  returned scheme-prefixed and without a trailing slash, so callers can
+     *  just append /chat/completions or /models. */
+    fun aiBaseUrl(c: Context): String {
+        val raw = prefs(c).getString(KEY_AI_BASE, "").orEmpty().trim().trimEnd('/')
+        if (raw.isEmpty()) return DEFAULT_AI_BASE
+        return if (raw.startsWith("http")) raw else "https://$raw"
+    }
+
+    /** The model the family picked from the provider's live list. "" = auto. */
+    fun aiModel(c: Context): String = prefs(c).getString(KEY_AI_MODEL, "").orEmpty().trim()
+
+    /** Save the AI trio together — the Test/Get-models buttons call this first so
+     *  they always use what's typed on screen, never stale prefs. */
+    fun saveAiConfig(c: Context, baseUrl: String, model: String, key: String) {
+        prefs(c).edit()
+            .putString(KEY_AI_BASE, baseUrl.trim())
+            .putString(KEY_AI_MODEL, model.trim())
+            .putString(KEY_AI, key.trim())
+            .apply()
+    }
+
+    fun aiBaseUrlRaw(c: Context) = prefs(c).getString(KEY_AI_BASE, "").orEmpty()
+
+    /** Travel mode: on every charger plug/unplug, silently SMS the phone's GPS
+     *  location to all family numbers. Off by default. */
+    fun travelModeEnabled(c: Context): Boolean = prefs(c).getBoolean(KEY_TRAVEL, false)
+
+    fun setTravelMode(c: Context, enabled: Boolean) {
+        prefs(c).edit().putBoolean(KEY_TRAVEL, enabled).apply()
+    }
 
     /** How often (minutes) the low-battery reminder repeats until charging. */
     fun batteryReminderMinutes(c: Context): Int =

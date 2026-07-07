@@ -35,24 +35,25 @@ class LocationReplyService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         promoteToForeground()
 
-        val sender = intent?.getStringExtra(EXTRA_SENDER)
-        if (sender.isNullOrBlank() || !hasPermission(Manifest.permission.SEND_SMS)) {
-            Log.w(TAG, "Missing sender or SEND_SMS permission; cannot reply")
+        val recipients = intent?.getStringArrayExtra(EXTRA_RECIPIENTS)?.toList().orEmpty()
+        val prefix = intent?.getStringExtra(EXTRA_PREFIX) ?: PREFIX_FIND
+        if (recipients.isEmpty() || !hasPermission(Manifest.permission.SEND_SMS)) {
+            Log.w(TAG, "No recipients or SEND_SMS permission; cannot send location")
             stopSelf()
             return START_NOT_STICKY
         }
-        findLocationThenReply(sender)
+        findLocationThenReply(recipients, prefix)
         return START_NOT_STICKY
     }
 
     @SuppressLint("MissingPermission")
-    private fun findLocationThenReply(sender: String) {
+    private fun findLocationThenReply(recipients: List<String>, prefix: String) {
         val lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
         if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) &&
             !hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
         ) {
-            reply(sender, null)   // no location permission — still confirm it's ringing
+            reply(recipients, prefix, null)   // no location permission — still confirm
             stopSelf()
             return
         }
@@ -67,7 +68,7 @@ class LocationReplyService : Service() {
         }
         if (provider == null) {
             // Location is switched OFF — a stale cached fix is still better than nothing.
-            reply(sender, bestLastKnown(lm))
+            reply(recipients, prefix, bestLastKnown(lm))
             stopSelf()
             return
         }
@@ -86,7 +87,7 @@ class LocationReplyService : Service() {
                 if (done) return
                 done = true
                 runCatching { lm.removeUpdates(this) }
-                reply(sender, loc ?: bestLastKnown(lm))
+                reply(recipients, prefix, loc ?: bestLastKnown(lm))
                 stopSelf()
             }
         }
@@ -107,20 +108,20 @@ class LocationReplyService : Service() {
             .maxByOrNull { it.time }
     }
 
-    private fun reply(sender: String, loc: Location?) {
+    private fun reply(recipients: List<String>, prefix: String, loc: Location?) {
         val message = if (loc != null) {
-            "Ammamma phone ikkada undi / is here:\n" +
-                "https://maps.google.com/?q=${loc.latitude},${loc.longitude}"
+            "$prefix\nhttps://maps.google.com/?q=${loc.latitude},${loc.longitude}"
         } else {
-            "Ammamma phone is ringing now. (Location not available.)"
+            "$prefix\n(Location not available right now.)"
         }
-        try {
-            val sms = SmsManager.getDefault()
-            val parts = sms.divideMessage(message)
-            sms.sendMultipartTextMessage(sender, null, parts, null, null)
-            Log.i(TAG, "Location reply sent to $sender: $message")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send location SMS", e)
+        val sms = SmsManager.getDefault()
+        for (to in recipients) {
+            try {
+                sms.sendMultipartTextMessage(to, null, sms.divideMessage(message), null, null)
+                Log.i(TAG, "Location SMS sent to $to: $message")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send location SMS to $to", e)
+            }
         }
     }
 
@@ -151,12 +152,32 @@ class LocationReplyService : Service() {
 
     companion object {
         private const val TAG = "Ammamma"
-        private const val EXTRA_SENDER = "sender"
+        private const val EXTRA_RECIPIENTS = "recipients"
+        private const val EXTRA_PREFIX = "prefix"
         private const val FOREGROUND_ID = 42
 
+        private const val PREFIX_FIND = "Ammamma phone ikkada undi / is here:"
+
+        /** Find-my-phone: text the location back to whoever sent the code word. */
         fun start(context: Context, sender: String) {
+            launch(context, listOf(sender), PREFIX_FIND)
+        }
+
+        /** Travel mode: charger plugged in/out -> ping EVERY family number. */
+        fun startTravelPing(context: Context, pluggedIn: Boolean) {
+            val numbers = Settings.familyNumbers(context)
+            if (numbers.isEmpty()) {
+                Log.w(TAG, "Travel mode ping skipped: no family numbers saved")
+                return
+            }
+            val what = if (pluggedIn) "plugged IN" else "plugged OUT"
+            launch(context, numbers, "Travel mode: charger $what. Ammamma phone is here:")
+        }
+
+        private fun launch(context: Context, recipients: List<String>, prefix: String) {
             val i = Intent(context, LocationReplyService::class.java)
-                .putExtra(EXTRA_SENDER, sender)
+                .putExtra(EXTRA_RECIPIENTS, recipients.toTypedArray())
+                .putExtra(EXTRA_PREFIX, prefix)
             // Foreground-service start is allowed from a background broadcast on O+.
             context.startForegroundService(i)
         }

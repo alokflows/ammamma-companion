@@ -2,6 +2,7 @@ package com.ammamma.companion
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -34,6 +35,8 @@ class SettingsActivity : Activity() {
 
     private lateinit var codeWord: EditText
     private lateinit var aiKey: EditText
+    private lateinit var aiBaseUrl: EditText
+    private lateinit var aiModel: EditText
     private lateinit var batteryMinutes: EditText
     private lateinit var battLow: EditText
     private lateinit var battCritical: EditText
@@ -54,6 +57,8 @@ class SettingsActivity : Activity() {
 
         codeWord = findViewById(R.id.codeWord)
         aiKey = findViewById(R.id.aiKey)
+        aiBaseUrl = findViewById(R.id.aiBaseUrl)
+        aiModel = findViewById(R.id.aiModel)
         batteryMinutes = findViewById(R.id.batteryMinutes)
         battLow = findViewById(R.id.battLow)
         battCritical = findViewById(R.id.battCritical)
@@ -67,6 +72,8 @@ class SettingsActivity : Activity() {
         // Pre-fill with whatever is saved.
         codeWord.setText(Settings.codeWordRaw(this))
         aiKey.setText(Settings.aiKey(this))
+        aiBaseUrl.setText(Settings.aiBaseUrlRaw(this))   // empty shows the hint = default
+        aiModel.setText(Settings.aiModel(this))
         batteryMinutes.setText(Settings.batteryReminderRaw(this))
         battLow.setText(Settings.batteryLowRaw(this))
         battCritical.setText(Settings.batteryCriticalRaw(this))
@@ -83,14 +90,83 @@ class SettingsActivity : Activity() {
             }
         }
 
+        // Travel mode: saves the moment it is flipped, like the SMS-reply switch.
+        findViewById<Switch>(R.id.travelSwitch).apply {
+            isChecked = Settings.travelModeEnabled(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on ->
+                Settings.setTravelMode(this@SettingsActivity, on)
+            }
+        }
+
         // One row per saved number; a single empty row when none yet.
         val saved = Settings.familyNumbers(this)
         if (saved.isEmpty()) addNumberRow("") else saved.forEach { addNumberRow(it) }
         findViewById<Button>(R.id.addNumber).setOnClickListener { addNumberRow("") }
 
         findViewById<Button>(R.id.save).setOnClickListener { save() }
+        findViewById<Button>(R.id.fetchModels).setOnClickListener { fetchModelList() }
+        findViewById<Button>(R.id.testAi).setOnClickListener { testAi() }
         wireDemos()
         buildPermissionRows()
+    }
+
+    // --- AI: live model list + on-phone test, so a wrong key or dead model is
+    //     diagnosed HERE, not discovered as a mystery "busy" during a chat ---
+
+    /** Both AI buttons first persist what's typed, so they test the screen, not stale prefs. */
+    private fun saveAiFields() {
+        Settings.saveAiConfig(
+            this,
+            aiBaseUrl.text.toString(),
+            aiModel.text.toString(),
+            aiKey.text.toString()
+        )
+    }
+
+    private fun fetchModelList() {
+        saveAiFields()
+        Toast.makeText(this, "Fetching models…", Toast.LENGTH_SHORT).show()
+        Thread {
+            val r = AiBrain.fetchModels(this)
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                if (!r.ok) {
+                    showAiDialog("Could not get models", r.error)
+                    return@runOnUiThread
+                }
+                val ids = r.ids.toTypedArray()
+                AlertDialog.Builder(this)
+                    .setTitle("Pick a model (${ids.size})")
+                    .setItems(ids) { _, which ->
+                        aiModel.setText(ids[which])
+                        saveAiFields()
+                        Toast.makeText(this, "Model set: ${ids[which]}", Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
+        }.start()
+    }
+
+    private fun testAi() {
+        saveAiFields()
+        Toast.makeText(this, "Testing…", Toast.LENGTH_SHORT).show()
+        Thread {
+            val r = AiBrain.ask(this, "నమస్తే")
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                if (r.ok) showAiDialog("✅ AI works", r.text)
+                else showAiDialog("❌ AI failed", "${r.text}\n\n${r.detail}")
+            }
+        }.start()
+    }
+
+    private fun showAiDialog(title: String, message: String) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     /** Returning from a system settings screen must update the ticks instantly. */
@@ -166,6 +242,7 @@ class SettingsActivity : Activity() {
             aiKey.text.toString(),
             batteryMinutes.text.toString()
         )
+        saveAiFields()
         Settings.saveBatteryLevels(
             this,
             battLow.text.toString(),

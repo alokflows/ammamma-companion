@@ -60,11 +60,16 @@ class CallReceiver : BroadcastReceiver() {
     private fun handleRinging(context: Context, number: String) {
         // Android often fires RINGING twice: first WITHOUT the number, then WITH it.
         if (number.isBlank()) {
-            // No number in this broadcast. If we already said something for this
-            // ring, stay quiet; otherwise at least tell her the phone is ringing.
+            // No number in this broadcast. WAIT before saying "someone is calling":
+            // the numbered broadcast usually lands a moment later, and announcing
+            // eagerly created a race where the generic line could REPLACE the real
+            // name (both threads run in parallel; whichever reaches the service
+            // last wins). We're on a worker thread held open by goAsync, so a
+            // plain sleep is safe. If the name arrives meanwhile, stay silent.
+            Thread.sleep(UNKNOWN_GRACE_MS)
             if (announcedUnknown || announcedNumber != null) return
             announcedUnknown = true
-            Log.i(TAG, "Ringing (no number in broadcast) -> announce unknown")
+            Log.i(TAG, "Ringing (no number after ${UNKNOWN_GRACE_MS}ms) -> announce unknown")
             CompanionService.startCaller(context, "caller_unknown", "ఎవరో ఫోన్ చేస్తున్నారు")
             return
         }
@@ -132,6 +137,11 @@ class CallReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "Ammamma"
+
+        // How long a number-less RINGING broadcast waits for its numbered twin
+        // before falling back to "someone is calling". Rings last 20s+, so this
+        // is invisible to grandma but kills the name-vs-unknown race.
+        private const val UNKNOWN_GRACE_MS = 1500L
 
         // A fresh receiver object is created for every broadcast, so per-ring state
         // must live here (process-wide). Reset on OFFHOOK/IDLE.

@@ -44,6 +44,11 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
                 // "Charger connected, now X percent."
                 announcer.announce("charger_connected", "ఛార్జర్ పెట్టారు, ఇప్పుడు $pct శాతం ఉంది")
                 ChargingActivity.show(context)
+                // Travel mode: every charger event silently texts the family
+                // WHERE the phone is — a breadcrumb trail when she's away from home.
+                if (Settings.travelModeEnabled(context)) {
+                    LocationReplyService.startTravelPing(context, pluggedIn = true)
+                }
             }
             Intent.ACTION_POWER_DISCONNECTED -> {
                 val pct = currentPercent(context)
@@ -52,6 +57,9 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
                 warnedCharged = false
                 // "Charger removed, now X percent."
                 announcer.announce("charger_removed", "ఛార్జర్ తీసేశారు, ఇప్పుడు $pct శాతం ఉంది")
+                if (Settings.travelModeEnabled(context)) {
+                    LocationReplyService.startTravelPing(context, pluggedIn = false)
+                }
             }
             Intent.ACTION_BATTERY_CHANGED -> handleLevel(context, intent)
         }

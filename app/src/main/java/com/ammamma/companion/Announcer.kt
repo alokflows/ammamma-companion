@@ -29,6 +29,12 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
     private val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    // The engine starts ASYNCHRONOUSLY. If an incoming call resurrects the app,
+    // the very first announcement can arrive BEFORE onInit — speaking then fails
+    // silently and grandma hears nothing. So until init completes we queue the
+    // line here and speak it from onInit.
+    @Volatile private var initDone = false
+    @Volatile private var pendingText: String? = null
     private var player: MediaPlayer? = null
     private var savedVolume = -1
     private var savedAccessVolume = -1
@@ -44,6 +50,8 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
     override fun onInit(status: Int) {
         if (status != TextToSpeech.SUCCESS) {
             Log.w(TAG, "TTS init failed (status=$status). Only recorded clips will play.")
+            initDone = true      // unblock speak(); it will log-and-skip instead of queueing forever
+            pendingText = null
             return
         }
         val res = tts?.setLanguage(Locale("te", "IN"))
@@ -73,6 +81,13 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
             override fun onDone(utteranceId: String?) = restoreVolume()
             @Deprecated("legacy") override fun onError(utteranceId: String?) = restoreVolume()
         })
+
+        // Engine is ready — say anything that arrived while it was starting up.
+        initDone = true
+        pendingText?.let { queued ->
+            pendingText = null
+            speak(queued)
+        }
     }
 
     /**
@@ -138,6 +153,11 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
     }
 
     private fun speak(text: String) {
+        if (!initDone) {
+            pendingText = text
+            Log.i(TAG, "TTS still starting; queued: \"$text\"")
+            return
+        }
         val r = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "announce")
         if (r == TextToSpeech.SUCCESS) {
             Log.i(TAG, "TTS speaking: \"$text\"")
@@ -241,7 +261,16 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
      * safe to call when nothing is playing, and the next announce()/say() works
      * normally afterwards (we only stop the utterance, we never shut the engine down).
      */
+    /** True while a line is being spoken, a clip is playing, or one is queued
+     *  behind TTS startup. The caller-repeat loop checks this so a LONG name is
+     *  never chopped mid-word by the next repeat. */
+    fun isSpeaking(): Boolean =
+        pendingText != null ||
+            runCatching { tts?.isSpeaking == true }.getOrDefault(false) ||
+            runCatching { player?.isPlaying == true }.getOrDefault(false)
+
     fun stopSpeaking() {
+        pendingText = null   // a line still waiting for TTS startup must die too
         runCatching { tts?.stop() }
         player?.run { runCatching { if (isPlaying) stop() }; release() }
         player = null

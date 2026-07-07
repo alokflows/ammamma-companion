@@ -115,12 +115,11 @@ class TalkActivity : Activity(), RecognitionListener {
     private fun handleUtterance(text: String) {
         status.text = "ఆలోచిస్తోంది…"   // thinking
         reply.text = text
-        val key = Settings.aiKey(this)
         bg.execute {
             // If she's asking about the weather, fetch today's facts for her town and let
             // the brain phrase them warmly in Telugu. Fetch fails silently → normal chat.
             val weather = if (Weather.isWeatherQuestion(text)) Weather.factsForBrain() else null
-            val r = AiBrain.ask(key, text, weather)
+            val r = AiBrain.ask(this, text, weather)
             main.post {
                 if (r.ok) {
                     status.text = ""
@@ -129,8 +128,11 @@ class TalkActivity : Activity(), RecognitionListener {
                 } else {
                     // Never silently drop what she said — show it AND speak the reason aloud,
                     // because a text-only error is invisible to her (r.text is warm Telugu).
+                    // The technical detail is printed small for the FAMILY: grandma can't
+                    // read it, but whoever debugs the phone sees the real cause on-screen.
                     status.text = "మళ్ళీ ప్రయత్నించండి"
-                    reply.text = "మీరు: $text\n\n${r.text}"
+                    reply.text = "మీరు: $text\n\n${r.text}" +
+                        if (r.detail.isNotBlank()) "\n\n(${r.detail})" else ""
                     Announcer.get(this).say(r.text)
                 }
             }
