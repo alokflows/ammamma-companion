@@ -233,6 +233,24 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
         }
     }
 
+    /**
+     * Cut off whatever is currently being said, RIGHT NOW — for a dismiss/stop tap.
+     * Normally a line finishes on its own; this makes a button press silence it
+     * instantly. Stops the TTS utterance, stops+releases any playing clip, and puts
+     * every volume this class touched back the way she had it. Fully idempotent:
+     * safe to call when nothing is playing, and the next announce()/say() works
+     * normally afterwards (we only stop the utterance, we never shut the engine down).
+     */
+    fun stopSpeaking() {
+        runCatching { tts?.stop() }
+        player?.run { runCatching { if (isPlaying) stop() }; release() }
+        player = null
+        // restoreVolume + restoreRing already no-op when their saved state is -1.
+        restoreVolume()
+        restoreRing()
+        Log.i(TAG, "stopSpeaking(): announcement cut off, volumes restored")
+    }
+
     fun shutdown() {
         tts?.stop(); tts?.shutdown(); tts = null
         player?.release(); player = null

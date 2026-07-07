@@ -41,6 +41,8 @@ class MainActivity : Activity() {
     // but the banner stays visible for as long as location remains off.
     private var warnedLocationOff = false
     private var locationBanner: TextView? = null
+    // The "can't announce callers" banner (missing phone/call-log/contacts perms).
+    private var callerBanner: TextView? = null
 
     // One-time setup flags (first-run permission storm, overlay ask). Deliberately
     // NOT in Settings.kt — these are app plumbing, not family-editable settings.
@@ -94,6 +96,7 @@ class MainActivity : Activity() {
         }
         clockTick.run()  // start ticking
         checkLocation()  // grandpa-finder needs location ON; nag if it's off
+        checkCallerIdentity()  // caller announcement needs phone/call-log/contacts perms
     }
 
     override fun onPause() {
@@ -315,18 +318,56 @@ class MainActivity : Activity() {
     /** Built in code (not XML) so the home layout stays untouched. */
     private fun ensureLocationBanner(): TextView {
         locationBanner?.let { return it }
+        return makeBanner("📍 లొకేషన్ ఆన్ చేయండి · Turn location ON") {
+            runCatching {
+                startActivity(Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            }
+        }.also { locationBanner = it }
+    }
+
+    /**
+     * The caller-announcement chain needs THREE permissions: READ_PHONE_STATE (a call
+     * is happening), READ_CALL_LOG (the number itself on API 28+), READ_CONTACTS (the
+     * name). Miss any and she hears "unknown" for everyone. Show a tappable red banner
+     * — the tap grants the missing ones directly (an explicit tap is fine to re-ask on,
+     * even after the one-time first-run storm). Hidden once all three are held.
+     */
+    private fun checkCallerIdentity() {
+        val missing = CALLER_PERMISSIONS.any {
+            checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (!missing) {
+            callerBanner?.visibility = View.GONE
+            return
+        }
+        ensureCallerBanner().visibility = View.VISIBLE
+    }
+
+    private fun ensureCallerBanner(): TextView {
+        callerBanner?.let { return it }
+        return makeBanner("🔊 కాలర్ పేరు చెప్పలేను — నొక్కండి · Can't announce callers — tap to fix") {
+            // Recompute the missing set at tap time so we only ask for what's still needed.
+            val stillMissing = CALLER_PERMISSIONS.filter {
+                checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED
+            }
+            if (stillMissing.isNotEmpty()) requestPermissions(stillMissing.toTypedArray(), REQ_CALLER_PERMS)
+        }.also { callerBanner = it }
+    }
+
+    /**
+     * Shared red warning-banner builder. Inserted as the first row of the home column;
+     * the location and caller-identity banners each use this and can coexist (two red
+     * bars is fine). Built in code so the home XML stays untouched.
+     */
+    private fun makeBanner(label: String, onTap: () -> Unit): TextView {
         val banner = TextView(this).apply {
-            text = "📍 లొకేషన్ ఆన్ చేయండి · Turn location ON"
+            text = label
             setBackgroundColor(Color.parseColor("#C62828"))
             setTextColor(Color.WHITE)
             textSize = 20f
             setPadding(dp(16), dp(14), dp(16), dp(14))
             gravity = android.view.Gravity.CENTER
-            setOnClickListener {
-                runCatching {
-                    startActivity(Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-                }
-            }
+            setOnClickListener { onTap() }
         }
         // Root column inside the ScrollView — insert the banner as the first row.
         val root = findViewById<View>(R.id.grid).parent as LinearLayout
@@ -337,7 +378,6 @@ class MainActivity : Activity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
-        locationBanner = banner
         return banner
     }
 
@@ -370,6 +410,15 @@ class MainActivity : Activity() {
         private const val REQ_CALL = 101
         private const val REQ_STARTUP = 103
         private const val REQ_BATTERY_OPT = 104
+        private const val REQ_CALLER_PERMS = 105   // re-ask from the caller-identity banner
+
+        // The three permissions the caller announcement depends on; the banner nags
+        // (and can re-grant) if any is missing.
+        private val CALLER_PERMISSIONS = arrayOf(
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.READ_CALL_LOG,
+            Manifest.permission.READ_CONTACTS
+        )
 
         private const val FLAG_PERMS_ASKED = "perms_requested"
         private const val FLAG_OVERLAY_ASKED = "overlay_requested"
@@ -378,6 +427,9 @@ class MainActivity : Activity() {
         private val STARTUP_PERMISSIONS = arrayOf(
             Manifest.permission.CALL_PHONE,          // one-tap calling
             Manifest.permission.READ_PHONE_STATE,    // announce who's calling
+            // On API 28+ the incoming number arrives null/empty UNLESS we also hold
+            // READ_CALL_LOG — without it every caller becomes "unknown". Ask up front.
+            Manifest.permission.READ_CALL_LOG,       // get the incoming number on newer Android
             Manifest.permission.READ_CONTACTS,       // announce names from the PHONE's contact book
             Manifest.permission.RECEIVE_SMS,         // find-my-phone
             Manifest.permission.SEND_SMS,            // grandpa location reply

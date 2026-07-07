@@ -19,10 +19,16 @@ object Settings {
     private const val KEY_BATT_CRIT = "battery_critical_pct"    // urgent warn below this %
     private const val KEY_BATT_CHARGED = "battery_charged_pct"  // while charging, "enough" at this %
 
+    private const val KEY_SMS_REPLY = "sms_reply_enabled"       // find-phone texts location back
+    private const val KEY_CALLER_SECS = "caller_repeat_secs"    // gap between "X is calling" repeats
+    private const val KEY_CALLER_REPEATS = "caller_max_repeats" // how many times the name is said
+
     private const val DEFAULT_BATT_MIN = 5
     private const val DEFAULT_BATT_LOW = 20
     private const val DEFAULT_BATT_CRIT = 10
     private const val DEFAULT_BATT_CHARGED = 100
+    private const val DEFAULT_CALLER_SECS = 4
+    private const val DEFAULT_CALLER_REPEATS = 12
 
     private const val DEFAULT_CODE = "FINDME"
 
@@ -73,6 +79,34 @@ object Settings {
             .putString(KEY_BATT_LOW, lowPct.trim())
             .putString(KEY_BATT_CRIT, criticalPct.trim())
             .putString(KEY_BATT_CHARGED, chargedPct.trim())
+            .apply()
+    }
+
+    /** Whether find-my-phone also texts the GPS location back (family can turn it off). */
+    fun locationReplySmsEnabled(c: Context): Boolean = prefs(c).getBoolean(KEY_SMS_REPLY, true)
+
+    fun setLocationReplySms(c: Context, enabled: Boolean) {
+        prefs(c).edit().putBoolean(KEY_SMS_REPLY, enabled).apply()
+    }
+
+    /** Seconds between repeats of "<name> is calling" while the phone rings. */
+    fun callerRepeatSeconds(c: Context): Int =
+        prefs(c).getString(KEY_CALLER_SECS, null)?.toIntOrNull()?.coerceIn(2, 15) ?: DEFAULT_CALLER_SECS
+
+    /** How many times the name is spoken per ring (1 = say it once). */
+    fun callerMaxRepeats(c: Context): Int =
+        prefs(c).getString(KEY_CALLER_REPEATS, null)?.toIntOrNull()?.coerceIn(1, 30)
+            ?: DEFAULT_CALLER_REPEATS
+
+    fun callerRepeatSecondsRaw(c: Context) =
+        prefs(c).getString(KEY_CALLER_SECS, DEFAULT_CALLER_SECS.toString()).orEmpty()
+    fun callerMaxRepeatsRaw(c: Context) =
+        prefs(c).getString(KEY_CALLER_REPEATS, DEFAULT_CALLER_REPEATS.toString()).orEmpty()
+
+    fun saveCallerSettings(c: Context, repeatSecs: String, maxRepeats: String) {
+        prefs(c).edit()
+            .putString(KEY_CALLER_SECS, repeatSecs.trim())
+            .putString(KEY_CALLER_REPEATS, maxRepeats.trim())
             .apply()
     }
 

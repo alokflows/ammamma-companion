@@ -34,6 +34,9 @@ class FindPhoneActivity : Activity() {
         setContentView(R.layout.activity_findphone)
         findViewById<Button>(R.id.stop).setOnClickListener {
             CompanionService.stopFindAlarm(this)
+            // Also cut off any companion announcement that happens to be speaking, so
+            // one tap really does produce silence.
+            Announcer.get(this).stopSpeaking()
             finish()
         }
     }

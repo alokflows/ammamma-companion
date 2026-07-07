@@ -215,11 +215,15 @@ class CompanionService : Service() {
         // Quiet the ringtone (never silence it) so the spoken name wins over it.
         announcer.duckRingForSpeech()
         callerCount = 0
+        // Read the family's configured pace ONCE at the start of each ring, so a
+        // settings change takes effect on the very next call (no rebuild, no restart).
+        val intervalMs = Settings.callerRepeatSeconds(this) * 1000L
+        val maxRepeats = Settings.callerMaxRepeats(this)
         val r = object : Runnable {
             override fun run() {
                 announcer.announce(key, text)
                 callerCount++
-                if (callerCount < CALLER_MAX_REPEATS) handler.postDelayed(this, CALLER_INTERVAL_MS)
+                if (callerCount < maxRepeats) handler.postDelayed(this, intervalMs)
                 else stopCallerLoop()   // safety cap in case we miss the "idle" signal
             }
         }
@@ -316,8 +320,8 @@ class CompanionService : Service() {
         private const val REQ_RESURRECT = 11            // distinct request codes so the
         private const val REQ_WATCHDOG = 12             // two alarms never replace each other
 
-        private const val CALLER_INTERVAL_MS = 5_000L   // repeat the name every 5s while ringing
-        private const val CALLER_MAX_REPEATS = 12       // ~1 min safety cap
+        // Caller repeat pace is now family-configurable (Settings.callerRepeatSeconds /
+        // callerMaxRepeats), read fresh at the start of every ring in startCallerLoop().
 
         const val ACTION_CALLER_START = "com.ammamma.companion.CALLER_START"
         const val ACTION_CALLER_STOP = "com.ammamma.companion.CALLER_STOP"

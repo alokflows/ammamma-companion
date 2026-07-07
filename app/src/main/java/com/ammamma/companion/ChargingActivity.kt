@@ -49,7 +49,11 @@ class ChargingActivity : Activity() {
         tvPercent = findViewById(R.id.tvPercent)
         tvHealth = findViewById(R.id.tvHealth)
         tvTime = findViewById(R.id.tvTime)
-        findViewById<Button>(R.id.btnOk).setOnClickListener { finish() }
+        findViewById<Button>(R.id.btnOk).setOnClickListener {
+            // Cut off the spoken charging line the moment she closes the screen.
+            Announcer.get(this).stopSpeaking()
+            finish()
+        }
         // The spoken "charger connected, X percent" line is said by BatteryWatcher
         // (one voice, no double-speak). This screen just shows the live details.
     }

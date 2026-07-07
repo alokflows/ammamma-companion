@@ -38,8 +38,12 @@ class FindPhoneReceiver : BroadcastReceiver() {
         }
 
         Log.i(TAG, "Find-my-phone triggered by SMS")
-        FindPhoneActivity.show(context)                 // ring loudly
-        LocationReplyService.start(context, sender)     // text back where it is
+        FindPhoneActivity.show(context)                 // ring loudly (always)
+        // Texting the GPS location back is a separate, family-toggleable step. The
+        // ring/alarm above is never affected by this switch.
+        if (Settings.locationReplySmsEnabled(context)) {
+            LocationReplyService.start(context, sender)     // text back where it is
+        }
     }
 
     // Numbers can differ by country code (+91...) vs local, so match on the tail.
