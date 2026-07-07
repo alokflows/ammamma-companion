@@ -18,11 +18,16 @@ object Settings {
     private const val KEY_BATT_LOW = "battery_low_pct"          // warn below this %
     private const val KEY_BATT_CRIT = "battery_critical_pct"    // urgent warn below this %
     private const val KEY_BATT_CHARGED = "battery_charged_pct"  // while charging, "enough" at this %
+    private const val KEY_LOC_REPLY = "location_reply_sms"      // text GPS back on the code word
+    private const val KEY_CALLER_SECS = "caller_repeat_seconds" // gap between spoken caller names
+    private const val KEY_CALLER_TIMES = "caller_max_repeats"   // how many times the name is spoken
 
     private const val DEFAULT_BATT_MIN = 5
     private const val DEFAULT_BATT_LOW = 20
     private const val DEFAULT_BATT_CRIT = 10
     private const val DEFAULT_BATT_CHARGED = 100
+    private const val DEFAULT_CALLER_SECS = 4
+    private const val DEFAULT_CALLER_TIMES = 12
 
     private const val DEFAULT_CODE = "FINDME"
 
@@ -88,4 +93,42 @@ object Settings {
     // Raw strings for pre-filling the Settings fields.
     fun codeWordRaw(c: Context) = prefs(c).getString(KEY_CODE, DEFAULT_CODE).orEmpty()
     fun familyNumbersRaw(c: Context) = prefs(c).getString(KEY_NUMBERS, "").orEmpty()
+
+    // --- Location SMS reply ---------------------------------------------------
+    // On the code-word SMS the phone also texts its GPS back. Default ON because
+    // the family relies on it to find her; the Settings switch turns it off.
+    fun locationReplySmsEnabled(c: Context): Boolean =
+        prefs(c).getBoolean(KEY_LOC_REPLY, true)
+
+    /** Toggle applies immediately (not on Save) — one clear tap = one clear result. */
+    fun setLocationReplySms(c: Context, enabled: Boolean) {
+        prefs(c).edit().putBoolean(KEY_LOC_REPLY, enabled).apply()
+    }
+
+    // --- Caller announcement timing ------------------------------------------
+    // When the phone rings we speak the caller's name every N seconds, up to a
+    // maximum number of times, so she hears WHO is calling over the ringtone.
+    /** Gap between repeats, in seconds. Clamped to a sane 1..30. */
+    fun callerRepeatSeconds(c: Context): Int =
+        prefs(c).getString(KEY_CALLER_SECS, null)?.toIntOrNull()?.coerceIn(1, 30)
+            ?: DEFAULT_CALLER_SECS
+
+    /** How many times the name is spoken (1 = once). Clamped to 1..30. */
+    fun callerMaxRepeats(c: Context): Int =
+        prefs(c).getString(KEY_CALLER_TIMES, null)?.toIntOrNull()?.coerceIn(1, 30)
+            ?: DEFAULT_CALLER_TIMES
+
+    fun callerRepeatSecondsRaw(c: Context) =
+        prefs(c).getString(KEY_CALLER_SECS, DEFAULT_CALLER_SECS.toString()).orEmpty()
+
+    fun callerMaxRepeatsRaw(c: Context) =
+        prefs(c).getString(KEY_CALLER_TIMES, DEFAULT_CALLER_TIMES.toString()).orEmpty()
+
+    /** Saved with the classic Save button alongside the other fields. */
+    fun saveCallerSettings(c: Context, repeatSecondsRaw: String, maxRepeatsRaw: String) {
+        prefs(c).edit()
+            .putString(KEY_CALLER_SECS, repeatSecondsRaw.trim())
+            .putString(KEY_CALLER_TIMES, maxRepeatsRaw.trim())
+            .apply()
+    }
 }
