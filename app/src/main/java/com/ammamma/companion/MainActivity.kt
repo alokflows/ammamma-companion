@@ -76,6 +76,12 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // Escape hatch: if the find-phone alarm is sounding, opening the app must
+        // ALWAYS land on the big STOP button — never a silent home screen over a
+        // screaming phone.
+        if (CompanionService.isFindAlarmActive) {
+            startActivity(Intent(this, FindPhoneActivity::class.java))
+        }
         clockTick.run()  // start ticking
     }
 
