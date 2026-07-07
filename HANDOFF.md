@@ -273,3 +273,19 @@ Fixes driven by Alok's on-device testing:
 - **ColorOS SMS popup**: the countdown "send SMS?" dialog is ColorOS's guard, not
   ours — SETUP_PHONE.md step B2 (Send SMS → Allow) removes it. No code fix exists
   short of becoming the default SMS app (bad idea).
+
+## 12. v0.6 round 2 — grandma-agent review (2026-07-07)
+A Sonnet agent role-played Ammamma exploring the app on the emulator. FIXED same day:
+home-greeting spoken; "calling <name>" spoken as the call places; no-number and
+settings-gate taps speak Telugu; mic didn't-hear is spoken; Talk keyboard stateHidden;
+raw HTTP detail removed from her screen (family uses Settings→Test AI).
+OPEN — needs Alok's decision (deliberately not done unilaterally):
+- Back on Home exits to the raw launcher (no kiosk/lock-task mode).
+- Long-press on a face opens Edit/Delete — a shaky finger can reach it (gate harder?).
+- "+ Add person" tile is one tap away, same style as real cards.
+- No visible "stop talking" control anywhere in the UI.
+- Green call badge could read as "on a call now".
+Temporary test rig: scratchpad sonnet_bridge.py (localhost:8899, OpenAI-shaped,
+backed by `claude -p --model sonnet`) — emulator's ai_base_url points at
+http://10.0.2.2:8899/v1 with model claude-sonnet-5. Kill the python process when done;
+real phone should use OpenRouter + the Test AI button.
