@@ -415,3 +415,94 @@ saves a clip AND Announcer plays that clip instead of TTS. Evidence-logged, ever
 complete"; update memory `project_ammamma_companion.md` to CLOSED state; SETUP_PHONE.md gains
 a "record the family's voice (Recorder Studio)" final step. 8. Tell Alok: install v1.0, run
 Recorder Studio with the family — that's the last human step, and it's his by design.
+
+## 15. v1.0 FINAL PUSH — session state (2026-07-11 evening)
+
+Four parallel Sonnet worktree agents built the WPs; every diff reviewed line-by-line; merged
+clean (disjoint ownership held, zero conflicts): `b092d43` WP-D → `10be79a` WP-A → `6b42c70`
+WP-B → `ac15be5` WP-C → `aa88cda` stitch (DayScheduler.scheduleAll in CompanionService.onCreate
++ BootReceiver + SettingsActivity.save; finder-role redirect at top of MainActivity.onCreate,
+before setContentView). Debug APK installed on `ammamma_oppo` emulator.
+
+**GAUNTLET PASSED (logcat evidence):** greeting on cold start; charger removed/connected speak
+live % (emulator needs BOTH `adb emu power ac off/on` AND `power status …` — `status` alone
+fires no POWER_CONNECTED); low battery 14% → speech + AlertActivity + repeat engine; battery
+full speech + low-repeat auto-cancel on plug-in; unknown caller → ring duck + repeating
+announce, stops on call end; FINDME SMS → find alarm + FindPhoneActivity + location SMS reply,
+ఆపు stops it; DayReceiver chime (hour 18 → "సమయం 6 గంటలు", quiet=false, self-reschedules
+19:00) and heartbeat/alarm correctly gated while OFF; clip-first PROVEN (pushed hour_18.m4a +
+goodmorning.m4a via run-as → "Playing clip …" replaced TTS); Settings day-clock section renders
+w/ correct defaults (chimes ON, heartbeat/alarm OFF); switches flip live → heartbeat fires the
+goodmorning clip, alarm fires card + repeats, సరే cancels + silences; contact-id migration
+verified on device (prefs: c1..c6, contact_next_id=7); "+" add-tile hidden (edit_locked ON).
+Gotcha: shell broadcasts to DayReceiver need `adb root` (receiver non-exported).
+
+**GAUNTLET REMAINING:** back consumed on Home; locked long-press speaks unlock line; clock-tap
+stopSpeaking; weather tile (UI dump still showed placeholder "వాతావరణం" — verify fetch lands
++ tap speaks; emulator network can be slow); finder role end-to-end (flip finderRoleSwitch,
+set her number, relaunch app → FinderActivity, tap → SMS + spoken status; flip role back OFF);
+RecorderActivity smoke (open via Settings recorderStudio button, rows render); Settings demo
+buttons (identical code paths already proven via broadcasts — low risk).
+
+**RELEASE STEPS THEN:** versionCode 10 / versionName "1.0" in `app/build.gradle.kts` →
+`gh release list` FIRST (co-edited repo) → assembleRelease (keystore §Security) →
+`gh release create v1.0` w/ family-facing notes → mark this section SHIPPED → memory
+`project_ammamma_companion.md`: v1.0 shipped, v2 roadmap = §16 → SETUP_PHONE.md gains
+"record family voices in Recorder Studio" final step → tell Alok: install v1.0, run Recorder
+Studio with family (his last step by design). Emulator-only leftovers: test clips
+hour_18/goodmorning.m4a + heartbeat/alarm switches ON — harmless, wipe if re-testing TTS.
+
+## 16. v2.0 ROADMAP — "her phone OS" (Alok's brief 2026-07-11 + orchestrator brainstorm)
+
+Vision: the app stops being an app and becomes the phone. She talks, it does — Siri-like,
+Telugu-first, offline for basics, satisfying to touch. Same economy model: Fable thinks/specs/
+reviews, Sonnet executes in disjoint-file worktrees, emulator gauntlet before every release.
+
+**A. GUI overhaul** (Alok: battery/phone alert screens have "no good feel")
+- Redesign AlertActivity / ChargingActivity / FindPhoneActivity: one modern design language
+  with Home (rounded cards, soft elevation, big type, calm colors), not bare fullscreen slabs.
+- Satisfying touch: pressed-scale animation (~0.96 + spring release), ripple, haptic tick on
+  every actionable tap. Pure framework (ValueAnimator/StateListAnimator) — no libs, API 27-safe,
+  60fps on 2 GB. Fast: cold start < 1.5s to first paint; lazy-init anything heavy.
+
+**B. "Core priority" (reality check, Android 8.1)**
+- Already have the two real levers: foreground service + battery-optimization exemption.
+- Can add: THREAD_PRIORITY_URGENT_AUDIO for speech, high-importance notification channel.
+- True CPU/core pinning is NOT app-controllable on stock Android — don't chase it; the win
+  is staying resident (done) + fast wake paths.
+
+**C. Little-Siri: offline intent engine (no AI for basics)**
+- Local Telugu+English pattern matcher runs BEFORE the AI brain in TalkActivity: matched →
+  execute + speak confirmation; unmatched → fall through to AI. Works with NO internet.
+- Commands v1: set/cancel alarm ("...కి అలారం పెట్టు" → parse time → Settings.setAlarmTime +
+  enable + DayScheduler.scheduleAll); call <name> (existing dial path); flashlight on/off
+  (CameraManager.setTorchMode — offline, legal); Wi-Fi on/off (WifiManager.setWifiEnabled —
+  still allowed at targetSdk 27); volume/brightness; "ఇప్పుడు టైం ఎంత"/date; battery %.
+- Mobile-data toggle: NOT app-controllable (system permission) → open the exact Settings
+  screen + spoken guidance. Hotspot on 8.1: reflection hack exists, fragile — test first.
+- WhatsApp: silent auto-SEND remains impossible (v0.9 finding). Feasible: voice → open the
+  right chat with the message prefilled (she taps the green send — teach it aloud); WhatsApp
+  voice/video CALL intents exist but are version-fragile — REAL-DEVICE test before building.
+- Offline STT: Google recognizer with te-IN offline pack if present — test on the Oppo;
+  fallback = online STT, offline covers only pre-listed command words.
+
+**D. Browser/search agent + AI fallback chain**
+- "ఈరోజు వార్తలు ఏంటి?" → AI with web search. Cheapest path: Gemini free tier (built-in
+  Google Search grounding); alt: RSS fetch + summarize. Alok to supply/test Gemini keys.
+- Provider chain: primary Grok for chat → auto-fallback to Gemini on quota/4xx/5xx;
+  ai_accounts already holds multiple keys — add ordered failover + per-provider capability
+  flags (search→Gemini, chat→Grok). Surface which provider answered in the Settings tester.
+
+**E. Orchestrator brainstorm (unordered)**
+- Medicine reminders: recurring voice-set times, clip-first announcements, family-configured.
+- Daily news briefing at a set hour (search + TTS, quiet-hours aware).
+- "Read my messages / who called?" spoken SMS + missed-call summary.
+- WhatsApp video-call shortcut on face tiles (if C's intent test passes).
+- Idle photo-slideshow screensaver from faces/ + family-added photos.
+- SOS: long-press anywhere 3s → call daughter + location SMS blast.
+- Weather-aware morning heartbeat ("వాన రాబోతోంది, గొడుగు తీసుకోండి").
+- Speech-rate voice command ("నెమ్మదిగా చెప్పు"); festival/birthday greeting calendar;
+  remote family console via SMS code words (no server needed).
+
+**Suggested first slice of v2:** C-basics (alarm/call/flashlight/Wi-Fi/time/battery) +
+A alert-screen redesign + D fallback chain. WhatsApp + browser agent after device tests.
