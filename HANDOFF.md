@@ -289,3 +289,40 @@ Temporary test rig: scratchpad sonnet_bridge.py (localhost:8899, OpenAI-shaped,
 backed by `claude -p --model sonnet`) — emulator's ai_base_url points at
 http://10.0.2.2:8899/v1 with model claude-sonnet-5. Kill the python process when done;
 real phone should use OpenRouter + the Test AI button.
+
+## 13. v0.9 (2026-07-11) — real-device bug round 3, RELEASED ✅
+Released at /releases/tag/v0.9 (signed APK). NOTE: v0.7 and v0.8 tags were cut by
+Gemini/Antigravity (model routing, multi-key, TheftGuard) — this repo is co-edited by
+another AI; check `gh release list` before tagging.
+
+Two-agent batch (disjoint file ownership), merged at b76a8ba, verified on emulator:
+- **Voice discipline**: greeting once per session (30-min rule, `Announcer.shouldGreetNow`),
+  portrait lock, one-voice rule (clip vs TTS), volume % + mute toggle + `important:` param
+  (find-phone/low-battery bypass mute at full volume), Sounds settings section,
+  charging speaks FIRST on plug-in.
+- **Repeating alerts**: AlertActivity re-speaks its line for `Settings.alertRepeatSeconds`
+  (default 30, 0=once); stops on charger connect/disconnect, OK tap, snooze, or leaving
+  the card. Verified live: armed → 4 repeats → cancelled on AC and on tap.
+- **Talk rewrite**: chat-bubble UI, speak bar + typing bar, auto-listen loop that never
+  listens while TTS speaks, sessions in filesDir/chats with list/new/delete + 30-day
+  auto-delete (`chat_auto_delete`, default ON — Settings switch not yet built), full-length
+  answers with history (~16 msgs), digit-extraction dials exactly what she said.
+- **Travel mode**: separate travel recipient list + per-channel toggles; WhatsApp DROPPED
+  (no silent auto-send on Android); email relay documented in TRAVEL_EMAIL.md only.
+- **Startup race FIXED (3ebfe1f)**: app-launched cards (Alert/Charging/FindPhone) now carry
+  `FLAG_ACTIVITY_NO_USER_ACTION`. Without it, Android fired `onUserLeaveHint` on MainActivity
+  when our own card appeared → `stopSpeaking()` wiped the queued cold-start greeting ~2ms
+  after service start (emulator: sticky battery broadcast at charging/100% pops the
+  battery-full card at every service start). Any FUTURE background-launched activity must
+  carry this flag too.
+
+Emulator gotchas (cost us a day): this AVD needs `adb emu power status charging`
+(`ac on` alone leaves status=NOT_CHARGING); verify the installed APK via
+`dumpsys package com.ammamma.companion | grep lastUpdateTime` (debug can't overwrite a
+release-signed install — uninstall first); check `voice_muted` in shared_prefs before
+judging silence a bug.
+
+Next: Alok runs SETUP_PHONE.md + installs v0.9 on the real Oppo → bug round 4; then
+backlog: chat_auto_delete Settings switch, real face photos on dial cards, Recorder
+Studio, good-morning heartbeat, talking alarm, hourly chimes, weather tile, §12 UX
+decisions, TRAVEL_EMAIL.md relay client.
