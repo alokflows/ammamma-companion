@@ -50,9 +50,10 @@ class FindPhoneActivity : Activity() {
         fun show(context: Context) {
             CompanionService.startFindAlarm(context)
             runCatching {
+                // NO_USER_ACTION: an app-launched card must not fire onUserLeaveHint on the screen below (that silences the voice).
                 context.startActivity(
                     Intent(context, FindPhoneActivity::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
                 )
             }.onFailure { Log.w("Ammamma", "Find-phone screen launch blocked; notification path remains", it) }
         }

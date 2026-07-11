@@ -107,6 +107,7 @@ class AlertActivity : Activity() {
         val important = intent.getBooleanExtra(EXTRA_IMPORTANT, false)
         val announcer = Announcer.get(this)
         val deadline = SystemClock.elapsedRealtime() + windowSecs * 1000L
+        android.util.Log.i("Ammamma", "Alert repeats armed: ${windowSecs}s window (important=$important)")
 
         val loop = object : Runnable {
             // When the voice last went idle; 0 = it is (or was just) speaking.
@@ -122,6 +123,7 @@ class AlertActivity : Activity() {
                 } else if (quietSince == 0L) {
                     quietSince = now
                 } else if (now - quietSince >= QUIET_GAP_MS) {
+                    android.util.Log.i("Ammamma", "Alert repeat firing")
                     announcer.say(text, important)
                     quietSince = 0L
                 }
@@ -135,7 +137,10 @@ class AlertActivity : Activity() {
     }
 
     private fun cancelRepeats() {
-        repeatLoop?.let { ui.removeCallbacks(it) }
+        repeatLoop?.let {
+            ui.removeCallbacks(it)
+            android.util.Log.i("Ammamma", "Alert repeats cancelled")
+        }
         repeatLoop = null
     }
 
@@ -228,7 +233,8 @@ class AlertActivity : Activity() {
             important: Boolean = false
         ) {
             val i = Intent(context, AlertActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                // NO_USER_ACTION: an app-launched card must not fire onUserLeaveHint on the screen below (that silences the voice).
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
                 putExtra(EXTRA_MESSAGE, message)
                 putExtra(EXTRA_GREEN, green)
                 putExtra(EXTRA_REPEAT_TEXT, repeatText)

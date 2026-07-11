@@ -194,7 +194,7 @@ class CompanionService : Service() {
         val open = PendingIntent.getActivity(
             this, 0,
             Intent(this, FindPhoneActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_USER_ACTION),
             PendingIntent.FLAG_UPDATE_CURRENT
         )
         val n = Notification.Builder(this, FIND_CHANNEL)
