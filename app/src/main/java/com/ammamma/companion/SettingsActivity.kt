@@ -45,6 +45,15 @@ class SettingsActivity : Activity() {
     private lateinit var callerTimes: EditText
     private lateinit var travelNumbersContainer: LinearLayout
 
+    // Day clock time fields + grandpa-finder number (all persisted in save()).
+    private lateinit var quietStart: EditText
+    private lateinit var quietEnd: EditText
+    private lateinit var heartbeatHour: EditText
+    private lateinit var heartbeatMinute: EditText
+    private lateinit var alarmHour: EditText
+    private lateinit var alarmMinute: EditText
+    private lateinit var herNumber: EditText
+
     // Permissions section: header "all good" line, the rows container, and the
     // status icon for each row so onResume can refresh every tick in one pass.
     private lateinit var permsAllGood: TextView
@@ -127,6 +136,27 @@ class SettingsActivity : Activity() {
         findViewById<Button>(R.id.addNumber).setOnClickListener { addNumberRow("") }
 
         wireSoundsSection()
+        wireDayClockSection()
+        wireFinderSection()
+
+        // Recorder Studio: the family records real voices for every spoken line.
+        findViewById<Button>(R.id.recorderStudio).setOnClickListener {
+            startActivity(Intent(this, RecorderActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+            })
+        }
+
+        // Home edit lock: locked = grandma can't accidentally change people.
+        findViewById<Switch>(R.id.editLockSwitch).apply {
+            isChecked = Settings.editLocked(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Settings.setEditLocked(this@SettingsActivity, on) }
+        }
+
+        // Chat auto-delete: drop chat sessions untouched 30+ days.
+        findViewById<Switch>(R.id.chatAutoDeleteSwitch).apply {
+            isChecked = Settings.chatAutoDelete(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Settings.setChatAutoDelete(this@SettingsActivity, on) }
+        }
 
         findViewById<Button>(R.id.save).setOnClickListener { save() }
         findViewById<Button>(R.id.testAi).setOnClickListener { testAi() }
@@ -186,6 +216,58 @@ class SettingsActivity : Activity() {
                 Settings.setAlertRepeatSeconds(this@SettingsActivity, seekBar?.progress ?: startSecs)
             }
         })
+    }
+
+    /** Day clock: switches apply immediately (like the sounds switches); the
+     *  numeric hour/minute fields are persisted in save(), like the battery ones. */
+    private fun wireDayClockSection() {
+        quietStart = findViewById(R.id.quietStart)
+        quietEnd = findViewById(R.id.quietEnd)
+        heartbeatHour = findViewById(R.id.heartbeatHour)
+        heartbeatMinute = findViewById(R.id.heartbeatMinute)
+        alarmHour = findViewById(R.id.alarmHour)
+        alarmMinute = findViewById(R.id.alarmMinute)
+
+        quietStart.setText(Settings.quietStartHour(this).toString())
+        quietEnd.setText(Settings.quietEndHour(this).toString())
+        heartbeatHour.setText(Settings.heartbeatHour(this).toString())
+        heartbeatMinute.setText(Settings.heartbeatMinute(this).toString())
+        alarmHour.setText(Settings.alarmHour(this).toString())
+        alarmMinute.setText(Settings.alarmMinute(this).toString())
+
+        findViewById<Switch>(R.id.chimesSwitch).apply {
+            isChecked = Settings.chimesEnabled(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Settings.setChimesEnabled(this@SettingsActivity, on) }
+        }
+        findViewById<Switch>(R.id.heartbeatSwitch).apply {
+            isChecked = Settings.heartbeatEnabled(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Settings.setHeartbeatEnabled(this@SettingsActivity, on) }
+        }
+        findViewById<Switch>(R.id.alarmSwitch).apply {
+            isChecked = Settings.alarmEnabled(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Settings.setAlarmEnabled(this@SettingsActivity, on) }
+        }
+    }
+
+    /** Grandpa finder: the role switch applies immediately; her number is a
+     *  numeric field persisted in save(). The button shows the finder screen. */
+    private fun wireFinderSection() {
+        herNumber = findViewById(R.id.herNumber)
+        herNumber.setText(Settings.herNumber(this))
+
+        findViewById<Switch>(R.id.finderRoleSwitch).apply {
+            isChecked = Settings.finderRole(this@SettingsActivity) == "finder"
+            setOnCheckedChangeListener { _, on ->
+                Settings.setFinderRole(this@SettingsActivity, if (on) "finder" else "")
+            }
+        }
+        findViewById<Button>(R.id.openFinder).setOnClickListener {
+            // Persist the number first, so the finder screen sees what's typed here.
+            Settings.setHerNumber(this, herNumber.text.toString())
+            startActivity(Intent(this, FinderActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+            })
+        }
     }
 
     // --- AI: one row per key. Each row has a "Get models ▾" that lets the family
@@ -357,6 +439,22 @@ class SettingsActivity : Activity() {
         findViewById<Button>(R.id.findPhoneDemo).setOnClickListener {
             FindPhoneActivity.show(this)
         }
+        findViewById<Button>(R.id.chimeDemo).setOnClickListener {
+            // Mirrors the real hourly-chime path: the clip key is THIS hour's, so
+            // the family hears exactly what she would hear right now.
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            val display = if (hour % 12 == 0) 12 else hour % 12
+            Announcer.get(this).announce("hour_$hour", "సమయం $display గంటలు")
+        }
+        findViewById<Button>(R.id.heartbeatDemo).setOnClickListener {
+            Announcer.get(this).announce("goodmorning", "శుభోదయం అమ్మమ్మ")
+        }
+        findViewById<Button>(R.id.alarmDemo).setOnClickListener {
+            // Mirrors the real talking-alarm path: spoken line + full-screen card.
+            val text = "అమ్మమ్మ, సమయం అయింది"
+            Announcer.get(this).announce("alarm", text, important = true)
+            AlertActivity.show(this, text, green = true, repeatText = text, important = true)
+        }
     }
 
     // --- Family number rows ---
@@ -444,6 +542,28 @@ class SettingsActivity : Activity() {
             callerTimes.text.toString()
         )
         Settings.saveTravelNumbers(this, collectTravelNumbers())
+
+        // Day clock times + finder number. Blank or junk falls back to the saved
+        // value (Settings clamps ranges), so a half-cleared field can't break the clock.
+        fun num(edit: EditText, fallback: Int) = edit.text.toString().trim().toIntOrNull() ?: fallback
+        Settings.setQuietHours(
+            this,
+            num(quietStart, Settings.quietStartHour(this)),
+            num(quietEnd, Settings.quietEndHour(this))
+        )
+        Settings.setHeartbeatTime(
+            this,
+            num(heartbeatHour, Settings.heartbeatHour(this)),
+            num(heartbeatMinute, Settings.heartbeatMinute(this))
+        )
+        Settings.setAlarmTime(
+            this,
+            num(alarmHour, Settings.alarmHour(this)),
+            num(alarmMinute, Settings.alarmMinute(this))
+        )
+        Settings.setHerNumber(this, herNumber.text.toString())
+        // merge: DayScheduler.scheduleAll(this)
+
         Toast.makeText(this, "సేవ్ అయ్యింది · Saved", Toast.LENGTH_SHORT).show()
 
         // Find-my-phone + grandpa finder need: read incoming SMS, send the location

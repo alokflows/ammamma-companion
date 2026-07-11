@@ -28,6 +28,24 @@
             android:textColor="#8A7361"
             android:textSize="14sp" />
 
+        <!-- ============ RECORDER STUDIO: real family voices for every line ============ -->
+        <Button
+            android:id="@+id/recorderStudio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:paddingVertical="16dp"
+            android:text="🎙 రికార్డర్ స్టూడియో · Recorder Studio"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Record REAL family voices for every spoken line (greetings, chimes, callers). Recorded clips replace the robot voice everywhere."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
         <!-- ============ DEMOS: show the family every event on demand ============ -->
         <TextView
             android:layout_width="match_parent"
@@ -88,6 +106,33 @@
             android:layout_marginTop="8dp"
             android:paddingVertical="14dp"
             android:text="📢 ఫోన్ వెతుకు డెమో · Find-phone demo"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/chimeDemo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingVertical="14dp"
+            android:text="🕐 గంట డెమో · Hourly chime demo"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/heartbeatDemo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingVertical="14dp"
+            android:text="🌅 శుభోదయం డెమో · Morning heartbeat demo"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/alarmDemo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingVertical="14dp"
+            android:text="⏰ అలారం డెమో · Talking alarm demo"
             android:textSize="16sp" />
 
         <!-- ============ SOUNDS: volume, mute, per-category gates ============ -->
@@ -212,6 +257,199 @@
             android:layout_gravity="center_horizontal"
             android:textColor="#402A1C"
             android:textSize="15sp" />
+
+        <!-- ============ HOME LOCK (applies immediately) ============ -->
+        <Switch
+            android:id="@+id/editLockSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="హోమ్ ఎడిట్ లాక్ · Home edit lock"
+            android:textColor="#5A3720"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Locked = grandma can't accidentally change or add people on the home screen. Unlock here when the family wants to edit."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <!-- ============ DAY CLOCK: chimes, morning heartbeat, talking alarm ============ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="రోజు గడియారం · Day clock"
+            android:textColor="#5A3720"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="The phone marks the day out loud: hourly chimes, a good-morning line, and a talking alarm."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <Switch
+            android:id="@+id/chimesSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="గంట గంటకు సమయం చెప్పు · Hourly chime"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Speaks the time every hour. Quiet hours below silence it at night (start hour to end hour, 0–23)."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/quietStart"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="21"
+                android:inputType="number"
+                android:textColor="#402A1C" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:paddingHorizontal="10dp"
+                android:text="నుండి · to"
+                android:textColor="#8A7361"
+                android:textSize="14sp" />
+
+            <EditText
+                android:id="@+id/quietEnd"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="7"
+                android:inputType="number"
+                android:textColor="#402A1C" />
+        </LinearLayout>
+
+        <Switch
+            android:id="@+id/heartbeatSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="ఉదయం శుభోదయం · Morning heartbeat"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="A good-morning line at the time below (hour : minute). Stays off until a 'goodmorning' clip is recorded in Recorder Studio — recording one turns this on automatically."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/heartbeatHour"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="7"
+                android:inputType="number"
+                android:textColor="#402A1C" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:paddingHorizontal="10dp"
+                android:text=":"
+                android:textColor="#8A7361"
+                android:textSize="16sp" />
+
+            <EditText
+                android:id="@+id/heartbeatMinute"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="00"
+                android:inputType="number"
+                android:textColor="#402A1C" />
+        </LinearLayout>
+
+        <Switch
+            android:id="@+id/alarmSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="మాట్లాడే అలారం · Talking alarm"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Speaks and shows a full-screen card at the time below (hour : minute), like a real alarm."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/alarmHour"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="6"
+                android:inputType="number"
+                android:textColor="#402A1C" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:paddingHorizontal="10dp"
+                android:text=":"
+                android:textColor="#8A7361"
+                android:textSize="16sp" />
+
+            <EditText
+                android:id="@+id/alarmMinute"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="00"
+                android:inputType="number"
+                android:textColor="#402A1C" />
+        </LinearLayout>
 
         <!-- ============ PERMISSIONS (rows built in code) ============ -->
         <TextView
@@ -390,6 +628,68 @@
             android:textColor="#8A7361"
             android:textSize="13sp" />
 
+        <!-- ============ GRANDPA FINDER: this phone becomes the find-her button ============ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="తాతయ్య ఫైండర్ · Grandpa finder"
+            android:textColor="#5A3720"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="When ON, this phone's app opens straight into one giant find-her-phone button: tap it and her phone rings loudly and texts back its location."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <Switch
+            android:id="@+id/finderRoleSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="ఈ ఫోన్ తాతయ్యది (finder phone)"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="ఆమె నంబర్ · Her number"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ammamma's phone number — the find button texts the code word to this number."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/herNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:hint="+91 98xxxxxxxx"
+            android:inputType="phone"
+            android:textColor="#402A1C" />
+
+        <Button
+            android:id="@+id/openFinder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingVertical="14dp"
+            android:text="ఫైండర్ స్క్రీన్ చూడండి · See finder screen"
+            android:textSize="16sp" />
+
         <!-- ============ BATTERY ALERT LEVELS ============ -->
         <TextView
             android:layout_width="match_parent"
@@ -539,6 +839,26 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:text="Test AI · పరీక్ష" />
+
+        <!-- ============ CHAT AUTO-DELETE (applies immediately) ============ -->
+        <Switch
+            android:id="@+id/chatAutoDeleteSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="పాత చాట్‌లు తొలగించు · Chat auto-delete"
+            android:textColor="#5A3720"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Deletes chat sessions untouched for 30+ days, so the list stays short."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
 
         <!-- ============ Travel mode ============ -->
         <TextView

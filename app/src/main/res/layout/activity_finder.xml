@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Grandpa-phone mode: the WHOLE app is this screen — one giant, unmissable
+     "find her phone" button. High contrast (dark ground, huge white text) for
+     old eyes; a tiny gear in the corner is the family's escape hatch back to
+     Settings, without which a finder phone could never be reconfigured. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#1B2A4A">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- The one button. Fills nearly the whole screen so any tap anywhere works. -->
+        <Button
+            android:id="@+id/findHerButton"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="#1E8E3E"
+            android:text="📢\nఅమ్మమ్మ ఫోన్ వెతుకు"
+            android:textColor="#FFFFFF"
+            android:textSize="52sp"
+            android:textStyle="bold" />
+
+        <!-- Status line: what just happened, in words he can trust. -->
+        <TextView
+            android:id="@+id/finderStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="8dp"
+            android:gravity="center"
+            android:minHeight="64dp"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp" />
+    </LinearLayout>
+
+    <!-- Small family-only gear, bottom corner (deliberately small so grandpa
+         never hits it by accident). -->
+    <Button
+        android:id="@+id/finderGear"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="8dp"
+        android:background="@android:color/transparent"
+        android:text="⚙"
+        android:textColor="#8FA3C8"
+        android:textSize="24sp" />
+</FrameLayout>
