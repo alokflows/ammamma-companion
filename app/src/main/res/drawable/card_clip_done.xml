@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recorder Studio row that already has a recorded clip: same rounded card as
+     card_face, but light green so "done" is visible at a glance while scrolling. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#E8F5E9" />
+    <corners android:radius="22dp" />
+</shape>

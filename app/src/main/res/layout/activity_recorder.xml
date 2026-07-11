@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recorder Studio (family-only): record a real voice for every line the phone
+     speaks, so Ammamma hears her own people instead of a robot. Sections and
+     rows are built in code (contacts and 24 hour-rows are dynamic). -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FBF3E8"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="రికార్డింగ్ స్టూడియో · Recorder"
+            android:textColor="#402A1C"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="మీ గొంతుతో రికార్డ్ చేయండి — అమ్మమ్మకి రోబో బదులు మీరు వినిపిస్తారు.\nRecord each line in your own voice; the phone plays it instead of TTS. Green rows already have a clip."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <!-- All sections + clip rows are added here programmatically. -->
+        <LinearLayout
+            android:id="@+id/sectionsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+    </LinearLayout>
+</ScrollView>
