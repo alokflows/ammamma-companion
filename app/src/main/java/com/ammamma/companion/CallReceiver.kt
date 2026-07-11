@@ -20,8 +20,8 @@ import android.util.Log
  *   3. Neither knows the number -> "ఎవరో ఫోన్ చేస్తున్నారు" (someone is calling).
  *
  * 100% OFFLINE — pure Android telephony + our Announcer (clip-first, TTS fallback).
- * A recorded family-voice clip per person (key "caller_<index>") can replace the
- * spoken name later with zero code change.
+ * A recorded family-voice clip per person (key "caller_<contact id>") can replace
+ * the spoken name later with zero code change.
  */
 class CallReceiver : BroadcastReceiver() {
 
@@ -88,7 +88,7 @@ class CallReceiver : BroadcastReceiver() {
         val contacts = Contacts.load(context)
         val idx = contacts.indexOfFirst { it.number.isNotBlank() && sameNumber(it.number, number) }
         if (idx >= 0) {
-            return "caller_$idx" to "${contacts[idx].name} ఫోన్ చేస్తున్నారు"   // "<name> is calling"
+            return "caller_${contacts[idx].id}" to "${contacts[idx].name} ఫోన్ చేస్తున్నారు"   // "<name> is calling"
         }
 
         val deviceName = lookupDeviceContact(context, number)
