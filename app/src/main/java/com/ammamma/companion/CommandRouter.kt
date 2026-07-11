@@ -61,6 +61,10 @@ object CommandRouter {
             return Action.Call(number, "$number కి ఫోన్ చేస్తున్నాను")
         }
 
+        // LOCAL-FIRST: time/battery/torch/wifi/volume/alarm/photo/data work
+        // instantly with zero internet — try them before ever calling the AI.
+        OfflineIntents.match(context, userText)?.let { return it }
+
         val contacts = Contacts.load(context)
         val contactNames = contacts.map { it.name }.filter { it.isNotBlank() }
         val appNames = KNOWN.keys.toList()
