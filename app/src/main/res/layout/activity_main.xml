@@ -1,109 +1,127 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Ammamma's home. Clock + greeting, a grid of face-buttons that CALL, and a big
-     "Talk to me" mic button. Warm, high-contrast, one thumb. -->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+     "Talk to me" mic button. WP-LUX: deep warm-ink backdrop with an ambient
+     GlowBackdrop drawn under everything, luminous rounded cards on top. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FBF3E8"
-    android:fillViewport="true">
+    android:background="@color/ink_bg">
 
-    <LinearLayout
-        android:id="@+id/homeRoot"
+    <com.ammamma.companion.ui.GlowBackdrop
+        android:id="@+id/glow"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="18dp"
-        android:paddingBottom="20dp">
+        android:layout_height="match_parent" />
 
-        <!-- small settings gear (for family, not grandma) -->
-        <ImageView
-            android:id="@+id/settings"
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_gravity="end"
-            android:src="@drawable/ic_settings"
-            android:contentDescription="Settings" />
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
-        <!-- greeting + clock -->
-        <TextView
-            android:id="@+id/greeting"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:text="నమస్తే అమ్మమ్మ"
-            android:textColor="#8A7361"
-            android:textSize="22sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/clock"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:textColor="#402A1C"
-            android:textSize="56sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/date"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="2dp"
-            android:textColor="#8A7361"
-            android:textSize="15sp" />
-
-        <!-- today's weather, e.g. "31° ఎండ" — tap and it says the same out loud -->
-        <TextView
-            android:id="@+id/weather"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="10dp"
-            android:background="@drawable/weather_tile"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="6dp"
-            android:textColor="#8A7361"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <!-- face grid, filled in code -->
-        <GridLayout
-            android:id="@+id/grid"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:columnCount="2" />
-
-        <!-- Talk to me -->
         <LinearLayout
-            android:id="@+id/talkButton"
+            android:id="@+id/homeRoot"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal"
-            android:gravity="center"
-            android:background="@drawable/btn_talk"
-            android:clickable="true"
-            android:focusable="true"
-            android:paddingVertical="18dp"
-            android:elevation="4dp">
+            android:orientation="vertical"
+            android:paddingHorizontal="18dp"
+            android:paddingTop="20dp"
+            android:paddingBottom="26dp">
 
+            <!-- small settings gear (for family, not grandma) -->
             <ImageView
-                android:layout_width="34dp"
-                android:layout_height="34dp"
-                android:layout_marginEnd="12dp"
-                android:src="@drawable/ic_mic"
-                android:contentDescription="@null" />
+                android:id="@+id/settings"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_gravity="end"
+                android:src="@drawable/ic_settings"
+                android:contentDescription="Settings" />
 
+            <!-- greeting + clock -->
             <TextView
+                android:id="@+id/greeting"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="మాట్లాడు"
-                android:textColor="#FFF4E8"
-                android:textSize="28sp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="6dp"
+                android:includeFontPadding="true"
+                android:text="నమస్తే అమ్మమ్మ"
+                android:textColor="@color/ink_text_dim"
+                android:textSize="22sp"
                 android:textStyle="bold" />
-        </LinearLayout>
 
-    </LinearLayout>
-</ScrollView>
+            <TextView
+                android:id="@+id/clock"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="4dp"
+                android:fontFamily="sans-serif-light"
+                android:includeFontPadding="true"
+                android:textColor="@color/ink_text"
+                android:textSize="64sp" />
+
+            <TextView
+                android:id="@+id/date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="4dp"
+                android:includeFontPadding="true"
+                android:textColor="@color/ink_text_dim"
+                android:textSize="15sp" />
+
+            <!-- today's weather, e.g. "31° ఎండ" — tap and it says the same out loud -->
+            <TextView
+                android:id="@+id/weather"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/weather_tile"
+                android:includeFontPadding="true"
+                android:paddingHorizontal="18dp"
+                android:paddingVertical="8dp"
+                android:textColor="@color/ink_text"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <!-- face grid, filled in code -->
+            <GridLayout
+                android:id="@+id/grid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="2" />
+
+            <!-- Talk to me -->
+            <LinearLayout
+                android:id="@+id/talkButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:background="@drawable/btn_talk"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingVertical="20dp"
+                android:elevation="0dp">
+
+                <ImageView
+                    android:layout_width="34dp"
+                    android:layout_height="34dp"
+                    android:layout_marginEnd="12dp"
+                    android:src="@drawable/ic_mic"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="true"
+                    android:text="మాట్లాడు"
+                    android:textColor="#FFF4E8"
+                    android:textSize="28sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+</FrameLayout>

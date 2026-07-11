@@ -13,8 +13,11 @@ import android.os.SystemClock
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.ammamma.companion.ui.GlowBackdrop
+import com.ammamma.companion.ui.Press
 
 /**
  * The giant full-screen "do ONE thing" card.
@@ -37,6 +40,13 @@ class AlertActivity : Activity() {
     // caller (BatteryWatcher, speech-first); this loop only handles the repeats.
     private val ui = Handler(Looper.getMainLooper())
     private var repeatLoop: Runnable? = null
+
+    // WP-LUX skeleton, built ONCE in onCreate: ink backdrop + ambient glow behind
+    // one centered luminous card. render() only repopulates the card's contents
+    // (this activity is singleTask — a replacing alert re-enters via onNewIntent,
+    // and must not call setContentView twice).
+    private lateinit var glow: GlowBackdrop
+    private lateinit var card: LinearLayout
 
     // Charger state changing IS her answer to a battery alert: plugging in answers
     // "please charge", unplugging answers "remove the charger". Either way, stop
@@ -63,6 +73,27 @@ class AlertActivity : Activity() {
             addAction(Intent.ACTION_POWER_DISCONNECTED)
         })
         receiverRegistered = true
+
+        // Skeleton: ink backdrop, ambient glow, one centered luminous card. Built
+        // once — render() below only ever repopulates `card`'s children.
+        val root = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#0F1216")) }
+        glow = GlowBackdrop(this)
+        root.addView(glow, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+        card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundResource(R.drawable.card_lux)
+            setPadding(dp(28), dp(32), dp(28), dp(32))
+        }
+        root.addView(card, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.CENTER
+            marginStart = dp(20); marginEnd = dp(20)
+        })
+        setContentView(root)
         render(intent)
     }
 
@@ -72,6 +103,16 @@ class AlertActivity : Activity() {
         super.onNewIntent(newIntent)
         setIntent(newIntent)
         render(newIntent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        glow.start()
+    }
+
+    override fun onStop() {
+        glow.stop()
+        super.onStop()
     }
 
     // The repeat loop must NEVER outlive the screen (a voice that won't stop was
@@ -144,33 +185,46 @@ class AlertActivity : Activity() {
         repeatLoop = null
     }
 
+    /**
+     * Repopulate the persistent `card` (built once in onCreate) for this alert.
+     * Same information as before — message, giant OK, optional snooze — just
+     * on the shared ink-luxury card instead of a full-bleed color slab. The
+     * mood color now lives in the ambient glow + an accent-tinted message,
+     * not a solid background fill.
+     */
     private fun render(intent: Intent) {
         val message = intent.getStringExtra(EXTRA_MESSAGE) ?: "!"
         val isGood = intent.getBooleanExtra(EXTRA_GREEN, false)
-        val bg = if (isGood) Color.parseColor("#1E8E3E") else Color.parseColor("#C62828")
+        val accent = if (isGood) Color.parseColor("#3ADB7A") else Color.parseColor("#FF6B57")
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setBackgroundColor(bg)
-            setPadding(dp(32), dp(32), dp(32), dp(32))
+        // Battery-full / talking-alarm = warm green+amber; low-battery = amber
+        // deepening to red (urgency without panic).
+        if (isGood) {
+            glow.setMood(Color.rgb(58, 219, 122), Color.rgb(255, 176, 84), Color.rgb(47, 191, 143))
+        } else {
+            glow.setMood(Color.rgb(255, 176, 84), Color.rgb(198, 40, 40), Color.rgb(255, 107, 74))
         }
 
-        root.addView(TextView(this).apply {
+        card.removeAllViews()
+
+        card.addView(TextView(this).apply {
             text = message
-            textSize = 44f
-            setTextColor(Color.WHITE)
+            textSize = 40f
+            setTextColor(accent)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
+            includeFontPadding = true
         })
 
         // One enormous, unmissable dismiss button.
-        root.addView(Button(this).apply {
+        card.addView(Button(this).apply {
             text = "సరే"   // "OK"
             textSize = 34f
             // Green = the safe, always-right tap (drawable shared with FindPhone's ఆపు).
             setBackgroundResource(R.drawable.btn_primary_green)
             setTextColor(Color.WHITE)
             isAllCaps = false
+            stateListAnimator = null
             setOnClickListener {
                 // Silence any line still playing the instant she taps — don't let it
                 // finish on its own — and kill the repeat loop with it.
@@ -178,31 +232,40 @@ class AlertActivity : Activity() {
                 Announcer.get(this@AlertActivity).stopSpeaking()
                 finish()
             }
+            Press.attach(this, cornerRadiusDp = 22f, addRipple = false)  // btn_primary_green already ripples
         }, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             (resources.displayMetrics.heightPixels * 0.22f).toInt()
-        ).apply { topMargin = dp(40) })
+        ).apply { topMargin = dp(36) })
 
         // Low-battery only: a snooze button that silences the repeating reminder.
         if (!isGood) {
-            root.addView(Button(this).apply {
+            card.addView(Button(this).apply {
                 text = "తర్వాత చెప్పు"   // "tell me later" (snooze)
                 textSize = 26f
-                setBackgroundResource(R.drawable.btn_outline)
+                setBackgroundResource(R.drawable.btn_outline_lux)
+                setTextColor(Color.parseColor("#F4EEE3"))  // ink_text — was invisible on the old cream fill
                 isAllCaps = false
+                stateListAnimator = null
                 setOnClickListener {
                     cancelRepeats()
                     Announcer.get(this@AlertActivity).stopSpeaking()
                     CompanionService.stopBatteryReminder(this@AlertActivity)
                     finish()
                 }
+                Press.attach(this, cornerRadiusDp = 22f, addRipple = false)  // btn_outline_lux already ripples
             }, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = dp(16) })
         }
 
-        setContentView(root)
+        // Single card scales in from 0.94 + fades — replays on every render (a
+        // replacing singleTask alert deserves the same entrance as a fresh one).
+        card.animate().cancel()
+        card.alpha = 0f; card.scaleX = 0.94f; card.scaleY = 0.94f
+        card.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start()
+
         startRepeats(intent)
     }
 

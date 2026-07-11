@@ -24,6 +24,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import com.ammamma.companion.ui.GlowBackdrop
+import com.ammamma.companion.ui.Press
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,6 +42,10 @@ class MainActivity : Activity() {
     private lateinit var date: TextView
     private lateinit var weather: TextView
     private var pendingNumber: String? = null
+
+    // WP-LUX ambient backdrop. Null when finder-role redirects before
+    // setContentView — every use below is null-safe so that path is unaffected.
+    private var glow: GlowBackdrop? = null
 
     // What the grid was last built for (locked or unlocked) — so onResume can
     // rebuild it only when the family flipped the edit lock in Settings.
@@ -84,6 +90,12 @@ class MainActivity : Activity() {
         // First run: ask for everything the companion needs, up front, in one go.
         requestStartupPermissions()
 
+        // Ambient glow backdrop — Home's mood is calm: warm amber + soft violet +
+        // teal. Drawn under everything else; start()/stop() follow onStart/onStop.
+        glow = findViewById<GlowBackdrop>(R.id.glow).also {
+            it.setMood(Color.rgb(255, 176, 84), Color.rgb(150, 120, 255), Color.rgb(90, 200, 180))
+        }
+
         clock = findViewById(R.id.clock)
         date = findViewById(R.id.date)
         weather = findViewById(R.id.weather)
@@ -94,6 +106,7 @@ class MainActivity : Activity() {
         weather.setOnClickListener {
             Announcer.get(this).say(HomeWeather.spokenLine())
         }
+        Press.attach(weather, cornerRadiusDp = 20f)
 
         // TAP-TO-SILENCE: if the phone is mid-sentence and she wants quiet, tapping
         // the clock or any blank part of the home stops the voice. No menu, no icon
@@ -101,6 +114,7 @@ class MainActivity : Activity() {
         val hush = View.OnClickListener { Announcer.get(this).stopSpeaking() }
         clock.setOnClickListener(hush)
         findViewById<View>(R.id.homeRoot).setOnClickListener(hush)
+        Press.attach(clock, cornerRadiusDp = 16f)
 
         // Speak a hello when she opens the app — but only once per 30 minutes (not
         // on every resume/re-open) AND only if the family left the greeting on.
@@ -111,8 +125,9 @@ class MainActivity : Activity() {
             Announcer.get(this).announce("home_greeting", "నమస్తే అమ్మమ్మ")
         }
 
-        findViewById<View>(R.id.talkButton).setOnClickListener {
-            startActivity(Intent(this, TalkActivity::class.java))
+        findViewById<View>(R.id.talkButton).also {
+            it.setOnClickListener { startActivity(Intent(this, TalkActivity::class.java)) }
+            Press.attach(it, cornerRadiusDp = 30f)
         }
 
         // Settings is family-only. A casual tap does nothing (a gentle Telugu hint);
@@ -130,8 +145,19 @@ class MainActivity : Activity() {
         gear.setOnLongClickListener {
             startActivity(Intent(this, SettingsActivity::class.java)); true
         }
+        Press.attach(gear, cornerRadiusDp = 15f)
 
         installMuteToggle(gear)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        glow?.start()
+    }
+
+    override fun onStop() {
+        glow?.stop()
+        super.onStop()
     }
 
     /**
@@ -151,7 +177,7 @@ class MainActivity : Activity() {
         val muteToggle = TextView(this).apply {
             textSize = 22f
             setPadding(dp(6), dp(2), dp(10), dp(2))
-            setTextColor(Color.parseColor("#8A7361"))
+            setTextColor(Color.parseColor("#A79E90"))
             isClickable = true
             isFocusable = true
         }
@@ -186,6 +212,30 @@ class MainActivity : Activity() {
         // add-tile visibility depends on it, so rebuild if the state changed.
         if (lastBuiltLocked != Settings.editLocked(this)) buildFaceGrid()
         refreshWeather()
+        playEntrance()
+    }
+
+    /**
+     * WP-LUX entrance: once per resume, the face cards fade + slide up in a
+     * short stagger (~40ms apart, 220ms each) — the "wow" of arriving on Home,
+     * cheap ObjectAnimators via ViewPropertyAnimator only.
+     */
+    private fun playEntrance() {
+        val grid = findViewById<GridLayout>(R.id.grid)
+        for (i in 0 until grid.childCount) {
+            val child = grid.getChildAt(i)
+            // Preserve the "no number yet" dimmed alpha (0.6f) as the animation's
+            // end value instead of always landing on fully opaque.
+            val targetAlpha = child.alpha
+            child.animate().cancel()
+            child.alpha = 0f
+            child.translationY = dp(18).toFloat()
+            child.animate()
+                .alpha(targetAlpha).translationY(0f)
+                .setStartDelay(i * 40L)
+                .setDuration(220)
+                .start()
+        }
     }
 
     /** Paint whatever weather we have instantly, then fetch a fresh reading. */
@@ -257,16 +307,20 @@ class MainActivity : Activity() {
             // per-person colored ring around the avatar
             val ring = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#F3E7D3"))
+                setColor(Color.parseColor("#232A33"))
                 setStroke(dp(4), contact.ringColor)
             }
             card.findViewById<FrameLayout>(R.id.avatarFrame).background = ring
 
             // Family-set photo: fills the ring as a circle. No photo → the generic
-            // person icon stays, so the grid never looks broken while photos trickle in.
+            // person icon stays (tinted for the ink card), so the grid never looks
+            // broken while photos trickle in.
+            val avatarImage = card.findViewById<ImageView>(R.id.avatarImage)
+            avatarImage.setColorFilter(Color.parseColor("#D8CDBE"))
             val photo = Faces.load(this, contact.id)
             if (photo != null) {
-                card.findViewById<ImageView>(R.id.avatarImage).apply {
+                avatarImage.apply {
+                    clearColorFilter()   // a real photo must never be tinted
                     layoutParams = FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
                         FrameLayout.LayoutParams.MATCH_PARENT
@@ -310,6 +364,7 @@ class MainActivity : Activity() {
                 }
                 true
             }
+            Press.attach(card, cornerRadiusDp = 28f)
 
             // two equal columns, each cell with a little margin
             grid.addView(card, cellParams(gap))
@@ -325,10 +380,12 @@ class MainActivity : Activity() {
             addCard.findViewById<View>(R.id.noNumber).visibility = View.GONE
             addCard.findViewById<FrameLayout>(R.id.avatarFrame).background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#F3E7D3"))
+                setColor(Color.parseColor("#232A33"))
                 setStroke(dp(4), Color.parseColor("#B0857A"))
             }
+            addCard.findViewById<ImageView>(R.id.avatarImage).setColorFilter(Color.parseColor("#D8CDBE"))
             addCard.setOnClickListener { showEditDialog(-1, null) }
+            Press.attach(addCard, cornerRadiusDp = 28f)
             grid.addView(addCard, cellParams(gap))
         }
     }
