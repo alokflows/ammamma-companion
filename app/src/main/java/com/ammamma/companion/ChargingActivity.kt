@@ -5,11 +5,15 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Color
 import android.os.BatteryManager
 import android.os.Bundle
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
+import com.ammamma.companion.ui.GlowBackdrop
+import com.ammamma.companion.ui.Press
 
 /**
  * The live charging screen. Appears when the charger is plugged in, wakes the
@@ -25,6 +29,7 @@ class ChargingActivity : Activity() {
     private lateinit var tvPercent: TextView
     private lateinit var tvHealth: TextView
     private lateinit var tvTime: TextView
+    private lateinit var glow: GlowBackdrop
 
     // Live updates: refresh on every battery change; close when unplugged.
     private val receiver = object : BroadcastReceiver() {
@@ -46,16 +51,39 @@ class ChargingActivity : Activity() {
         )
         setContentView(R.layout.activity_charging)
 
+        // WP-LUX: teal/green ambient mood, matching the charging color family.
+        glow = findViewById<GlowBackdrop>(R.id.glow).also {
+            it.setMood(Color.rgb(90, 200, 180), Color.rgb(58, 219, 122), Color.rgb(47, 191, 143))
+        }
+        // Single card scales in from 0.94 + fades — once, on the way in.
+        findViewById<View>(R.id.card).apply {
+            alpha = 0f; scaleX = 0.94f; scaleY = 0.94f
+            animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start()
+        }
+
         tvPercent = findViewById(R.id.tvPercent)
         tvHealth = findViewById(R.id.tvHealth)
         tvTime = findViewById(R.id.tvTime)
-        findViewById<Button>(R.id.btnOk).setOnClickListener {
-            // Cut off the spoken charging line the moment she closes the screen.
-            Announcer.get(this).stopSpeaking()
-            finish()
+        findViewById<Button>(R.id.btnOk).also { btn ->
+            btn.setOnClickListener {
+                // Cut off the spoken charging line the moment she closes the screen.
+                Announcer.get(this).stopSpeaking()
+                finish()
+            }
+            Press.attach(btn, cornerRadiusDp = 22f, addRipple = false)  // btn_primary_green already ripples
         }
         // The spoken "charger connected, X percent" line is said by BatteryWatcher
         // (one voice, no double-speak). This screen just shows the live details.
+    }
+
+    override fun onStart() {
+        super.onStart()
+        glow.start()
+    }
+
+    override fun onStop() {
+        glow.stop()
+        super.onStop()
     }
 
     override fun onResume() {

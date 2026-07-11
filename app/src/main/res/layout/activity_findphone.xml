@@ -1,44 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- WP-LUX: "here I am!" stop screen. Ink backdrop + a red, slowly-breathing
+     ambient glow (urgency without panic) behind one centered luminous card. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:background="#1E5FA8"
-    android:padding="28dp">
+    android:background="@color/ink_bg">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="ఇక్కడ ఉన్నా!"
-        android:textColor="#FFFFFF"
-        android:textSize="46sp"
-        android:textStyle="bold" />
+    <com.ammamma.companion.ui.GlowBackdrop
+        android:id="@+id/glow"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="Phone is here"
-        android:textColor="#CFE2F7"
-        android:textSize="20sp" />
-
-    <Button
-        android:id="@+id/stop"
+    <LinearLayout
+        android:id="@+id/card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="52dp"
-        android:layout_marginHorizontal="8dp"
-        android:minHeight="96dp"
-        android:paddingTop="24dp"
-        android:paddingBottom="24dp"
-        android:background="@drawable/btn_primary_green"
-        android:stateListAnimator="@null"
-        android:elevation="6dp"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:textAllCaps="false"
-        android:text="ఆపు"
-        android:textSize="34sp" />
+        android:layout_gravity="center"
+        android:layout_marginHorizontal="20dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/card_lux"
+        android:padding="32dp">
 
-</LinearLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="true"
+            android:text="ఇక్కడ ఉన్నా!"
+            android:textColor="@color/ink_accent_red"
+            android:textSize="46sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:includeFontPadding="true"
+            android:text="Phone is here"
+            android:textColor="@color/ink_text_dim"
+            android:textSize="20sp" />
+
+        <Button
+            android:id="@+id/stop"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:minHeight="96dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="24dp"
+            android:background="@drawable/btn_primary_green"
+            android:stateListAnimator="@null"
+            android:elevation="0dp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            android:text="ఆపు"
+            android:textSize="34sp" />
+
+    </LinearLayout>
+</FrameLayout>

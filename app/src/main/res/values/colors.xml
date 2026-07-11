@@ -14,4 +14,15 @@
     <!-- soft touch feedback -->
     <color name="ripple_light">#40FFFFFF</color>
     <color name="ripple_dark">#22000000</color>
+
+    <!-- WP-LUX: warm-ink luxury design language (Home / Alert / Charging / FindPhone).
+         Deep warm ink, NOT pure black; luminous cards a shade lighter with a hairline
+         lighter stroke; warm-white text for elderly-readable contrast. -->
+    <color name="ink_bg">#0F1216</color>
+    <color name="ink_card">#1A1E24</color>
+    <color name="ink_card_stroke">#2D333C</color>
+    <color name="ink_text">#F4EEE3</color>
+    <color name="ink_text_dim">#A79E90</color>
+    <color name="ink_accent_green">#3ADB7A</color>
+    <color name="ink_accent_red">#FF6B57</color>
 </resources>

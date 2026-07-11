@@ -1,94 +1,115 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Live charging screen. Big, informative, spoken aloud. Not dumbed down:
-     percentage, battery health, and estimated time-to-full. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- WP-LUX: live charging screen. Same ink backdrop + GlowBackdrop (teal/green
+     mood) as Home, one centered luminous card holding ALL the real information —
+     percentage, battery health, our estimated time-to-full — spoken aloud by
+     BatteryWatcher. Not dumbed down: clarity is the luxury, omission is not. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:background="#16693A"
-    android:padding="28dp">
+    android:background="@color/ink_bg">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="ఛార్జ్ అవుతోంది"
-        android:textColor="#DFF5E6"
-        android:textSize="30sp"
-        android:textStyle="bold" />
+    <com.ammamma.companion.ui.GlowBackdrop
+        android:id="@+id/glow"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
-    <TextView
-        android:id="@+id/tvPercent"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="—%"
-        android:textColor="#FFFFFF"
-        android:textSize="96sp"
-        android:textStyle="bold" />
-
-    <!-- Battery health -->
     <LinearLayout
+        android:id="@+id/card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:orientation="horizontal"
-        android:gravity="center">
+        android:layout_gravity="center"
+        android:layout_marginHorizontal="20dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="@drawable/card_lux"
+        android:padding="28dp">
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="బ్యాటరీ ఆరోగ్యం:  "
-            android:textColor="#B9E6C8"
-            android:textSize="24sp" />
-        <TextView
-            android:id="@+id/tvHealth"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="—"
-            android:textColor="#FFFFFF"
+            android:includeFontPadding="true"
+            android:text="ఛార్జ్ అవుతోంది"
+            android:textColor="@color/ink_text_dim"
             android:textSize="24sp"
             android:textStyle="bold" />
-    </LinearLayout>
 
-    <!-- Time to full -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:orientation="horizontal"
-        android:gravity="center">
         <TextView
+            android:id="@+id/tvPercent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="నిండటానికి:  "
-            android:textColor="#B9E6C8"
-            android:textSize="24sp" />
-        <TextView
-            android:id="@+id/tvTime"
-            android:layout_width="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="sans-serif-light"
+            android:includeFontPadding="true"
+            android:text="—%"
+            android:textColor="@color/ink_accent_green"
+            android:textSize="96sp" />
+
+        <!-- Battery health -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="లెక్కిస్తోంది…"
+            android:layout_marginTop="20dp"
+            android:orientation="horizontal"
+            android:gravity="center">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="true"
+                android:text="బ్యాటరీ ఆరోగ్యం:  "
+                android:textColor="@color/ink_text_dim"
+                android:textSize="22sp" />
+            <TextView
+                android:id="@+id/tvHealth"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="true"
+                android:text="—"
+                android:textColor="@color/ink_text"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Time to full -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+            android:gravity="center">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="true"
+                android:text="నిండటానికి:  "
+                android:textColor="@color/ink_text_dim"
+                android:textSize="22sp" />
+            <TextView
+                android:id="@+id/tvTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="true"
+                android:text="లెక్కిస్తోంది…"
+                android:textColor="@color/ink_text"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnOk"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:minHeight="80dp"
+            android:paddingTop="22dp"
+            android:paddingBottom="22dp"
+            android:background="@drawable/btn_primary_green"
+            android:stateListAnimator="@null"
+            android:elevation="0dp"
             android:textColor="#FFFFFF"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            android:text="సరే"
+            android:textSize="30sp" />
+
     </LinearLayout>
-
-    <Button
-        android:id="@+id/btnOk"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="44dp"
-        android:layout_marginHorizontal="8dp"
-        android:minHeight="80dp"
-        android:paddingTop="22dp"
-        android:paddingBottom="22dp"
-        android:background="@drawable/btn_on_green"
-        android:stateListAnimator="@null"
-        android:elevation="6dp"
-        android:textColor="#16693A"
-        android:textStyle="bold"
-        android:textAllCaps="false"
-        android:text="సరే"
-        android:textSize="30sp" />
-
-</LinearLayout>
+</FrameLayout>

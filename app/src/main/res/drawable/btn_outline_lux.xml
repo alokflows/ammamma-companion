@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WP-LUX: neutral OUTLINE secondary action on the ink theme (e.g. AlertActivity's
+     snooze "తర్వాత చెప్పు"). Quiet: a hairline lighter stroke on a barely-lifted
+     dark fill, with a soft light ripple — same "outline = neutral" semantic as
+     the original cream btn_outline, just re-toned for the dark card. Kept as its
+     own file (not an edit of btn_outline.xml) because that drawable is shared
+     with RecorderActivity's item_clip_row.xml, which is outside WP-LUX scope. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/ripple_light">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/ink_card" />
+            <stroke android:width="2dp" android:color="@color/ink_card_stroke" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+</ripple>

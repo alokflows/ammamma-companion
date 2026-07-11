@@ -6,12 +6,12 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="center"
-    android:background="@drawable/card_face"
+    android:background="@drawable/card_lux"
     android:clickable="true"
     android:focusable="true"
-    android:paddingTop="16dp"
-    android:paddingBottom="14dp"
-    android:elevation="3dp">
+    android:paddingTop="18dp"
+    android:paddingBottom="16dp"
+    android:elevation="0dp">
 
     <!-- avatar: a circle whose ring color is set per-person in code -->
     <FrameLayout
@@ -42,8 +42,9 @@
         android:id="@+id/name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:textColor="#402A1C"
+        android:layout_marginTop="10dp"
+        android:includeFontPadding="true"
+        android:textColor="@color/ink_text"
         android:textSize="24sp"
         android:textStyle="bold"
         tools:ignore="HardcodedText"
@@ -53,7 +54,8 @@
         android:id="@+id/rel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#8A7361"
+        android:includeFontPadding="true"
+        android:textColor="@color/ink_text_dim"
         android:textSize="13sp" />
 
     <!-- Always-visible hint on cards with no number yet (not just a transient toast). -->
@@ -62,8 +64,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
+        android:includeFontPadding="true"
         android:text="నంబర్ లేదు"
-        android:textColor="#B0857A"
+        android:textColor="@color/ink_text_dim"
         android:textSize="12sp"
         android:visibility="gone" />
 
