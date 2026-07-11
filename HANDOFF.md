@@ -326,3 +326,92 @@ Next: Alok runs SETUP_PHONE.md + installs v0.9 on the real Oppo → bug round 4;
 backlog: chat_auto_delete Settings switch, real face photos on dial cards, Recorder
 Studio, good-morning heartbeat, talking alarm, hourly chimes, weather tile, §12 UX
 decisions, TRAVEL_EMAIL.md relay client.
+
+## 14. FINAL PUSH → v1.0 (the "done, close the chat" batch) — EXECUTE THIS IN A FRESH SESSION
+
+**Alok's mandate (2026-07-11, verbatim intent):** finish EVERYTHING in one orchestrated run.
+Parallel Sonnet agents do all the work; the orchestrator (Fable) writes exact specs, reviews
+every diff, stitches, verifies, releases. **Definition of done: after this session there is NO
+backlog, NO "next step", NO open decision.** Alok closes the chat and shares the v1.0 APK with
+his family. Anything not built must be recorded below as *decided out of scope, with the reason*.
+
+### 14.0 Orchestration rules (Alok's economy rules — follow exactly)
+- Fable does ALL thinking/diagnosis in the main context. Sonnet agents get instructions so
+  exact they never have to think ("it just knows what to do"). Opus: not needed here.
+- Run agents in PARALLEL worktrees with **disjoint file ownership** (v0.5 lesson: overlapping
+  Settings edits made a manual-merge mess).
+- **Before dispatch, the orchestrator commits a base-prep commit adding every new `Settings.kt`
+  getter and every new string key ALL packages need** — agents branch from that base and never
+  touch `Settings.kt` or `SettingsActivity.kt` (WP-D owns SettingsActivity alone).
+- Review each agent's diff line-by-line before merging (quality gate has caught real defects:
+  965e769, d0c54b0). Check partial work before respawning a failed agent.
+- Any background-launched activity MUST carry `FLAG_ACTIVITY_NO_USER_ACTION` (§13 root cause).
+- Emulator gauntlet before release; evidence = logcat lines, not claims. Gotchas in §13 apply
+  (power status charging; lastUpdateTime; voice_muted pref; uninstall release before debug).
+
+### 14.1 Decisions ALREADY MADE — do not re-ask Alok
+- §12 UX items, decided by orchestrator under the standing goal:
+  - **Back on Home: consume it** (override onBackPressed → no-op). She can never fall out to
+    the raw launcher. Family navigates via gear.
+  - **Long-press edit/delete: gate it.** New pref `edit_locked` (default ON). Locked = long-press
+    speaks "మార్చాలంటే సెట్టింగ్స్‌లో అన్‌లాక్ చేయండి" and does nothing. Unlock switch in Settings.
+  - **"+ Add person" tile: hidden while `edit_locked`** (family adds via Settings/unlock).
+  - **Stop-talking control: tapping the Home clock (or any blank Home background) calls
+    Announcer.stopSpeaking().** No new button — the biggest thing on screen becomes the mute.
+  - **Green call badge → small white phone glyph** on the ring (reads "tap to call", not "on a call").
+- **OUT OF SCOPE, final (Alok's own decisions, recorded):** WhatsApp channel (no silent
+  auto-send on Android); travel email relay (TRAVEL_EMAIL.md documents it; NOT built);
+  airplane-mode/mobile-data auto-toggle (OS-impossible); on-device AI model (2 GB RAM);
+  neural TTS engines (storage full — Google TTS stays). These are ANSWERS, not gaps.
+- Chimes default ON with quiet hours 21:00–07:00; heartbeat default 07:00 OFF until a clip
+  exists (a robotic good-morning is worse than none — it auto-enables when a `goodmorning`
+  clip is recorded, family can override in Settings).
+
+### 14.2 Work packages (disjoint ownership — file lists are the contract)
+**WP-A · Recorder Studio** — NEW `RecorderActivity.kt`, NEW `ClipStore.kt`. Family records the
+voice clips that are the app's soul. MediaRecorder → `filesDir/clips/<key>.<ext>` in EXACTLY the
+format/naming `Announcer`'s clip-first lookup already expects (agent must read Announcer first
+and match it — do not invent a new convention). Screen: scrollable list of every clip key with
+Telugu label + what-it's-for line, per-row ▶ play / ● record / ✕ delete, recorded rows tinted
+green. Key catalog: `greeting`, `goodmorning`, `alarm`, `battery_low`, `battery_full`,
+`charger_connected`, `charger_removed`, `found_phone`, `hour_0`…`hour_23`, plus per-contact
+`calling_<contactId>`. Entry point: one button in Settings (WP-D places it).
+**WP-B · Clock features** — NEW `DayScheduler.kt` (+ NEW `AlarmActivity.kt` only if AlertActivity
+can't be reused — prefer reuse via `AlertActivity.show(..., repeatText=…)`). Three features on
+AlarmManager `setExactAndAllowWhileIdle` (API 27!), each rescheduling itself after firing and
+after boot: (1) hourly Telugu time chime ("సమయం <N> గంటలు") clip-first `hour_<N>`, quiet hours +
+master toggle from Settings; (2) good-morning heartbeat at set time, clip `goodmorning`;
+(3) talking alarm at family-set time → full-screen card + repeat engine, clip `alarm`, ఆపు stops.
+Exposes `DayScheduler.scheduleAll(context)`; orchestrator wires the single call into
+CompanionService.onCreate + BootReceiver at merge (WP-B must NOT edit those two files — put the
+exact one-liner in the agent report). Every feature gets a demo/test button spec for WP-D.
+**WP-C · Home polish** — owns `MainActivity.kt`, `Contact.kt` (+ its storage). Real face photos:
+in the (unlocked) edit screen, "photo" button → `ACTION_GET_CONTENT` image → copy+downsample to
+`filesDir/faces/<contactId>.jpg` (inSampleSize — 2 GB RAM) → circular-cropped on the dial card,
+color ring kept as border; falls back to today's initial-tile when absent. Weather tile: one
+small tile row on Home → tap speaks today's Huzurabad weather via existing `Weather.kt`
+(offline → "ఇంటర్నెట్ లేదు, వాతావరణం తెలియడం లేదు"). Plus the §14.1 decisions: back-consume,
+edit_locked gating, hide Add-tile when locked, clock-tap = stopSpeaking, phone-glyph badge.
+**WP-D · Settings + finder** — owns `SettingsActivity.kt` ONLY (Settings.kt getters were
+pre-added by orchestrator). Adds: chat auto-delete switch (pref exists, default ON — §13);
+`edit_locked` switch; Sounds additions (chimes toggle + quiet hours, heartbeat time+toggle,
+alarm time+toggle); Recorder Studio entry button; demo buttons for chime/heartbeat/alarm; and
+**grandpa finder role**: pref `finder_role` + "her number" field + NEW `FinderActivity.kt` — one
+giant "అమ్మమ్మ ఫోన్ వెతుకు" button that SMSes the code word to her number and shows/speaks "ఆమె
+ఫోన్ మోగుతుంది, లొకేషన్ SMS వస్తుంది". Orchestrator wires the 3-line finder_role redirect at the
+top of MainActivity.onCreate at merge (WP-D must not touch MainActivity).
+
+### 14.3 Merge → verify → ship (orchestrator, in order)
+1. Base-prep commit (all Settings getters + keys). 2. Dispatch WP-A/B/C/D in parallel worktrees.
+3. Review diffs; merge D, A, B, C; apply the cross-file one-liners (DayScheduler call in
+CompanionService.onCreate + BootReceiver; finder redirect in MainActivity). 4. Build debug,
+run the FULL gauntlet: §13's six scenarios PLUS chime demo fires+speaks, heartbeat demo,
+alarm demo card repeats & ఆపు stops, photo pick renders, weather tile speaks, back consumed,
+locked long-press speaks, clock-tap kills speech, finder role sends SMS (adb emu sms), recorder
+saves a clip AND Announcer plays that clip instead of TTS. Evidence-logged, every line.
+5. Bump `app/build.gradle`: versionCode 10, versionName "1.0". 6. `gh release list` FIRST
+(co-edited repo!), then assembleRelease (keystore §"Security", creds in keystore.properties)
+→ release **v1.0** with family-facing notes. 7. Append HANDOFF §15 "v1.0 SHIPPED — project
+complete"; update memory `project_ammamma_companion.md` to CLOSED state; SETUP_PHONE.md gains
+a "record the family's voice (Recorder Studio)" final step. 8. Tell Alok: install v1.0, run
+Recorder Studio with the family — that's the last human step, and it's his by design.
