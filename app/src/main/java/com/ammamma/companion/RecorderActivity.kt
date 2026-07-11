@@ -3,17 +3,27 @@ package com.ammamma.companion
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.OpenableColumns
+import android.text.InputType
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import com.ammamma.companion.ClipCatalog.ClipSpec
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * Recorder Studio — the family records real-voice clips for every line the app
@@ -33,17 +43,21 @@ import java.io.File
  */
 class RecorderActivity : Activity() {
 
-    /** One recordable line: the Announcer event key, a Telugu label the family
-     *  understands, and the words they should actually say into the mic. */
-    private data class ClipSpec(val key: String, val label: String, val hint: String)
+    // ClipSpec itself lives in ClipCatalog now (see the import above) — the
+    // single source of truth for every recordable announcement.
 
-    /** Live view references for one row so it can be refreshed after changes. */
+    /** Live view references for one row so it can be refreshed after changes.
+     *  [hintText] is the row's normal "చెప్పండి: …" line — saved so a transient
+     *  "importing…"/"downloading…" message can be put back afterwards. */
     private data class Row(
         val spec: ClipSpec,
         val root: View,
         val record: Button,
         val play: Button,
-        val delete: Button
+        val delete: Button,
+        val importBtn: Button,
+        val hint: TextView,
+        val hintText: String
     )
 
     private val rows = LinkedHashMap<String, Row>()
@@ -62,6 +76,17 @@ class RecorderActivity : Activity() {
     // A crash mid-recording therefore never leaves a corrupt clip for Announcer.
     private val tempFile: File get() = File(cacheDir, "recorder_tmp.m4a")
 
+    // ---- from-file / from-Drive import state -------------------------------
+    // Which row's document-picker result we're waiting for (survives the trip
+    // out to the system file picker and back).
+    private var pendingImportKey: String? = null
+    // At most one import runs at a time (surgical — no queue): the key it's
+    // busy for, and what its row's hint line should say meanwhile.
+    private var busyKey: String? = null
+    private var busyLabel: String = ""
+    // Background copy/download work posts its result back here.
+    private val main = Handler(Looper.getMainLooper())
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_recorder)
@@ -78,71 +103,15 @@ class RecorderActivity : Activity() {
 
     // ---------------------------------------------------------------- catalog
 
+    /** Zero hardcoded rows here on purpose — every section and every spec
+     *  comes from ClipCatalog, the single source of truth. Add a new
+     *  announcement there and it shows up here automatically, no second
+     *  edit needed. */
     private fun buildCatalog(container: LinearLayout) {
-        // 1. Greetings — hints copied verbatim from the current TTS lines.
-        addSection(container, "పలకరింపులు · Greetings",
-            "The friendly lines she hears when opening screens.")
-        addRow(container, ClipSpec("home_greeting", "ఇంటి పలకరింపు · Home", "నమస్తే అమ్మమ్మ"))
-        addRow(container, ClipSpec("talk_greeting", "మాట్లాడు తెర · Talk screen", "చెప్పమ్మా, ఏం కావాలి"))
-        addRow(container, ClipSpec("goodmorning", "శుభోదయం · Good morning", "శుభోదయం అమ్మమ్మ"))
-
-        // 2. Battery — the TTS versions speak the exact %, a clip can't, so the
-        //    hints are the same sentences without the number.
-        addSection(container, "బ్యాటరీ & ఛార్జింగ్ · Battery",
-            "Charger in/out and charge warnings.")
-        addRow(container, ClipSpec("charger_connected", "ఛార్జర్ పెట్టినప్పుడు · Plugged in", "ఛార్జర్ పెట్టారు"))
-        addRow(container, ClipSpec("charger_removed", "ఛార్జర్ తీసినప్పుడు · Unplugged", "ఛార్జర్ తీసేశారు"))
-        addRow(container, ClipSpec("battery_full", "ఛార్జ్ నిండినప్పుడు · Full", "ఛార్జింగ్ నిండింది, ఛార్జర్ తీసేయండి"))
-        addRow(container, ClipSpec("battery_low", "ఛార్జ్ తక్కువప్పుడు · Low", "ఛార్జ్ తక్కువగా ఉంది, దయచేసి ఛార్జ్ చేయండి"))
-
-        // 3. Find-phone.
-        addSection(container, "ఫోన్ వెతుకు · Find phone",
-            "Spoken while the phone rings out loud to be found.")
-        addRow(container, ClipSpec("found_phone", "ఫోన్ దొరికినప్పుడు · Found it", "ఫోన్ ఇక్కడ ఉంది అమ్మమ్మ!"))
-
-        // 4. Talking alarm.
-        addSection(container, "అలారం · Alarm",
-            "The talking-alarm line at the set time.")
-        addRow(container, ClipSpec("alarm", "అలారం మాట · Alarm line", "అమ్మమ్మ, సమయం అయింది"))
-
-        // 5. Hourly chime — one clip per hour of the day, labeled in the
-        //    12-hour Telugu form she actually thinks in.
-        addSection(container, "గంట గంటకి · Hourly chime",
-            "One line per hour; record only the hours you want a real voice for.")
-        for (h in 0..23) {
-            val h12 = if (h % 12 == 0) 12 else h % 12
-            val gantalu = if (h12 == 1) "1 గంట" else "$h12 గంటలు"
-            addRow(container, ClipSpec(
-                "hour_$h",
-                "సమయం $gantalu (${periodTelugu(h)})",
-                "ఇప్పుడు ${periodTelugu(h)} $gantalu"
-            ))
+        ClipCatalog.sections(this).forEach { section ->
+            addSection(container, section.title, section.helper)
+            section.specs.forEach { spec -> addRow(container, spec) }
         }
-
-        // 6. Callers — keyed by the STABLE contact id (never the list position),
-        //    so a clip keeps working after the family reorders or edits people.
-        addSection(container, "ఎవరు ఫోన్ చేస్తున్నారు · Callers",
-            "Announced while the phone rings — one per person.")
-        Contacts.load(this).forEach { c ->
-            addRow(container, ClipSpec(
-                "caller_${c.id}",
-                "${c.name} · ${c.english}",
-                "${c.name} ఫోన్ చేస్తున్నారు"
-            ))
-        }
-        addRow(container, ClipSpec("caller_device", "ఫోన్‌లో సేవ్ అయిన వ్యక్తి · Other saved contact",
-            "తెలిసినవారు ఫోన్ చేస్తున్నారు"))
-        addRow(container, ClipSpec("caller_unknown", "తెలియని నంబర్ · Unknown number",
-            "ఎవరో ఫోన్ చేస్తున్నారు"))
-    }
-
-    /** Day-part words matching how the hours are spoken at home. */
-    private fun periodTelugu(h: Int): String = when (h) {
-        in 4..5 -> "తెల్లవారుజాము"   // early dawn
-        in 6..11 -> "ఉదయం"          // morning
-        in 12..15 -> "మధ్యాహ్నం"     // afternoon
-        in 16..18 -> "సాయంత్రం"      // evening
-        else -> "రాత్రి"             // night (19–23 and 0–3)
     }
 
     private fun addSection(container: LinearLayout, title: String, helper: String) {
@@ -169,17 +138,22 @@ class RecorderActivity : Activity() {
     private fun addRow(container: LinearLayout, spec: ClipSpec) {
         val v = layoutInflater.inflate(R.layout.item_clip_row, container, false)
         v.findViewById<TextView>(R.id.clipLabel).text = spec.label
-        v.findViewById<TextView>(R.id.clipHint).text = "చెప్పండి: “${spec.hint}”"
+        val hintText = "చెప్పండి: “${spec.hint}”"
+        val hintView = v.findViewById<TextView>(R.id.clipHint).apply { text = hintText }
 
         val row = Row(
             spec, v,
             v.findViewById(R.id.btnRecord),
             v.findViewById(R.id.btnPlay),
-            v.findViewById(R.id.btnDelete)
+            v.findViewById(R.id.btnDelete),
+            v.findViewById(R.id.btnImport),
+            hintView,
+            hintText
         )
         row.record.setOnClickListener { onRecordTapped(spec.key) }
         row.play.setOnClickListener { onPlayTapped(spec.key) }
         row.delete.setOnClickListener { confirmDelete(spec) }
+        row.importBtn.setOnClickListener { onImportTapped(spec.key) }
 
         container.addView(v, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
@@ -193,6 +167,7 @@ class RecorderActivity : Activity() {
         val recorded = ClipStore.has(this, row.spec.key)
         val isRecording = recordingKey == row.spec.key
         val isPlaying = playingKey == row.spec.key
+        val isBusy = busyKey == row.spec.key
 
         row.root.setBackgroundResource(
             if (recorded && !isRecording) R.drawable.card_clip_done else R.drawable.card_face
@@ -205,6 +180,15 @@ class RecorderActivity : Activity() {
         row.play.visibility = if (recorded && !isRecording) View.VISIBLE else View.GONE
         row.delete.visibility = if (recorded && !isRecording) View.VISIBLE else View.GONE
         row.play.text = if (isPlaying) "⏹" else "▶"
+
+        // While an import/download for THIS row is in flight, freeze every
+        // button on it (a second tap mid-copy could race the validated-replace)
+        // and show what's happening instead of the usual "say this" hint.
+        row.record.isEnabled = !isBusy
+        row.play.isEnabled = !isBusy
+        row.delete.isEnabled = !isBusy
+        row.importBtn.isEnabled = !isBusy
+        row.hint.text = if (isBusy) busyLabel else row.hintText
     }
 
     private fun refreshAll() { rows.values.forEach { refreshRow(it) } }
@@ -333,6 +317,271 @@ class RecorderActivity : Activity() {
         playingKey = null
     }
 
+    // ------------------------------------------------------------------ import
+    // "Failure is not an option": every import (file or Drive) lands in a
+    // cacheDir staging file, gets PROVEN playable with a real MediaPlayer
+    // prepare(), and only THEN replaces the clip via ClipStore.commitImport —
+    // which deletes every old extension first so nothing can shadow the new
+    // file. Any failure at any step deletes the staging file and leaves
+    // whatever clip already existed completely untouched.
+
+    private fun onImportTapped(key: String) {
+        if (busyKey != null) {
+            Toast.makeText(this, "ఒక దిగుమతి పూర్తయ్యే వరకు ఆగండి · Please wait for the current import to finish", Toast.LENGTH_SHORT).show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("ఎక్కడి నుండి? · Import from")
+            .setItems(arrayOf(
+                "ఫైల్ నుండి ఎంచుకోండి · Choose a file on the phone",
+                "Drive లింక్ నుండి · Paste a Google Drive link"
+            )) { _, which ->
+                if (which == 0) pickFile(key) else showDriveDialog(key)
+            }
+            .setNegativeButton("రద్దు · Cancel", null)
+            .show()
+    }
+
+    /** ACTION_OPEN_DOCUMENT, filtered LENIENTLY: WhatsApp voice notes and some
+     *  file managers report odd/video mime types for what is really just
+     *  audio, so video/mp4 is accepted alongside the audio mime type rather
+     *  than rejecting a perfectly good clip on a technicality. */
+    private fun pickFile(key: String) {
+        pendingImportKey = key
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "audio/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("audio/*", "video/mp4"))
+        }
+        try {
+            startActivityForResult(intent, REQ_FILE)
+        } catch (e: Exception) {
+            Log.e(TAG, "No file picker available", e)
+            pendingImportKey = null
+            Toast.makeText(this, "ఫైల్ ఎంపిక తెరవలేదు · Could not open the file picker", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQ_FILE) return
+        val key = pendingImportKey.also { pendingImportKey = null } ?: return
+        val uri = data?.data
+        if (resultCode != RESULT_OK || uri == null) return   // user cancelled — nothing to touch
+        runImport(key, "దిగుమతి అవుతోంది… · Importing…") { importDocument(key, uri) }
+    }
+
+    /** Dialog with a single paste field, accepting any common Drive URL shape
+     *  (…/file/d/<id>/…, …?id=<id>) or a bare file id. */
+    private fun showDriveDialog(key: String) {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+        val hintLine = TextView(this).apply {
+            text = "షేర్ చేసేటప్పుడు 'Anyone with the link' పెట్టండి · Share the file as \"Anyone with the link\" first"
+            setTextColor(0xFF8A7361.toInt())
+            textSize = 13f
+        }
+        val linkEt = EditText(this).apply {
+            hint = "Drive లింక్ లేదా ఐడీ · Drive link or id"
+            inputType = InputType.TYPE_TEXT_VARIATION_URI or InputType.TYPE_CLASS_TEXT
+        }
+        box.addView(hintLine)
+        box.addView(linkEt)
+
+        AlertDialog.Builder(this)
+            .setTitle("Drive నుండి దిగుమతి · Import from Drive")
+            .setView(box)
+            .setPositiveButton("డౌన్‌లోడ్ · Download") { _, _ ->
+                val id = extractDriveId(linkEt.text.toString())
+                if (id == null) {
+                    val msg = "సరైన Drive లింక్ కాదు · That doesn't look like a Drive link"
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                    Announcer.get(this).say(msg)
+                } else {
+                    runImport(key, "డౌన్‌లోడ్ అవుతోంది… · Downloading…") { downloadFromDrive(key, id) }
+                }
+            }
+            .setNegativeButton("రద్దు · Cancel", null)
+            .show()
+    }
+
+    /** Pulls a Drive file id out of the shapes people actually paste:
+     *  .../file/d/<id>/..., ...?id=<id>, or the bare id with nothing else. */
+    private fun extractDriveId(raw: String): String? {
+        val s = raw.trim()
+        Regex("""/file/d/([\w-]+)""").find(s)?.let { return it.groupValues[1] }
+        Regex("""[?&]id=([\w-]+)""").find(s)?.let { return it.groupValues[1] }
+        // A Drive file id is a long token with no slashes/spaces — long enough
+        // that we won't mistake a stray short word for one.
+        if (s.matches(Regex("""[\w-]{15,}"""))) return s
+        return null
+    }
+
+    /** Runs [work] (blocking — file copy or network download + validation) off
+     *  the main thread, freezing this row meanwhile, and finishes on the UI
+     *  thread. Only one import runs at a time — see [busyKey]. */
+    private fun runImport(key: String, label: String, work: () -> String?) {
+        stopRecording(save = true)   // finish/save whatever else was mid-flight first
+        stopPlayback()
+        busyKey = key
+        busyLabel = label
+        refreshAll()
+        Thread {
+            val err = work()
+            main.post { finishImport(key, err) }
+        }.apply { isDaemon = true; name = "clip-import" }.start()
+    }
+
+    /** [err] null = success: same "just installed" ritual as a fresh recording
+     *  (heartbeat opt-in on "goodmorning", then auto-play so she/Alok hear it
+     *  immediately and the row paints green). Non-null = show AND speak it —
+     *  a silent failure on a screen she can't read is the one thing to avoid. */
+    private fun finishImport(key: String, err: String?) {
+        busyKey = null
+        if (isFinishing) return   // screen is gone; the file is already committed/discarded above
+        if (err != null) {
+            Toast.makeText(this, err, Toast.LENGTH_LONG).show()
+            Announcer.get(this).say(err)
+            refreshAll()
+            return
+        }
+        if (key == "goodmorning") Settings.setHeartbeatEnabled(this, true)
+        Toast.makeText(this, "దిగుమతి అయింది ✔ · Imported", Toast.LENGTH_SHORT).show()
+        onPlayTapped(key)   // plays it once + repaints the row, exactly like a fresh recording
+    }
+
+    /**
+     * BLOCKING — background thread only. Copies the picked document into a
+     * staging file, proves it's real playable audio, then commits it. Returns
+     * null on success or a short Telugu+English line to show/speak on failure.
+     */
+    private fun importDocument(key: String, uri: Uri): String? {
+        val staged = ClipStore.stagingFile(this, key)
+        staged.delete()
+        return try {
+            val ins = contentResolver.openInputStream(uri)
+                ?: return "ఫైల్ తెరవలేదు · Could not open the file"
+            val ext = extensionForDocument(uri)
+            ins.use { input -> staged.outputStream().use { out -> input.copyTo(out) } }
+            if (staged.length() == 0L) {
+                staged.delete()
+                return "ఖాళీ ఫైల్ · The file was empty"
+            }
+            if (!validateAudio(staged)) {
+                staged.delete()
+                return "ఇది సరైన ఆడియో కాదు · That file isn't playable audio"
+            }
+            ClipStore.commitImport(this, key, staged, ext)
+            null
+        } catch (e: Exception) {
+            Log.e(TAG, "File import failed for $key", e)
+            staged.delete()
+            "దిగుమతి విఫలమైంది · Could not import that file"
+        }
+    }
+
+    /**
+     * BLOCKING — background thread only. Downloads
+     * https://drive.google.com/uc?export=download&id=<id> and validates it
+     * exactly like a local file. Drive serves an HTML page (not the file)
+     * when it isn't shared publicly — that is treated as a specific, actionable
+     * failure rather than a generic one.
+     */
+    private fun downloadFromDrive(key: String, fileId: String): String? {
+        val staged = ClipStore.stagingFile(this, key)
+        staged.delete()
+        var conn: HttpURLConnection? = null
+        return try {
+            conn = (URL("https://drive.google.com/uc?export=download&id=$fileId")
+                .openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 15000
+                readTimeout = 15000
+                instanceFollowRedirects = true
+            }
+            val code = conn.responseCode
+            if (code !in 200..299) {
+                return "డౌన్‌లోడ్ కాలేదు (HTTP $code) · Could not download the file"
+            }
+            val contentType = conn.contentType?.lowercase() ?: ""
+            if (contentType.startsWith("text/html")) {
+                // Drive hands back an HTML page instead of bytes when the link
+                // isn't public — the fix is the sharing setting, not a retry.
+                return "Drive link ki 'Anyone with the link' access pettandi"
+            }
+            val ext = extensionForDrive(conn)
+            conn.inputStream.use { ins -> staged.outputStream().use { out -> ins.copyTo(out) } }
+            if (staged.length() == 0L) {
+                staged.delete()
+                return "ఖాళీ ఫైల్ వచ్చింది · The download was empty"
+            }
+            if (!validateAudio(staged)) {
+                staged.delete()
+                return "ఇది సరైన ఆడియో కాదు · That link isn't a playable audio file"
+            }
+            ClipStore.commitImport(this, key, staged, ext)
+            null
+        } catch (e: Exception) {
+            Log.e(TAG, "Drive download failed for $key", e)
+            staged.delete()
+            "డౌన్‌లోడ్ విఫలమైంది · Could not download from Drive"
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
+    /** The failure-is-not-an-option check itself: a real MediaPlayer prepare()
+     *  on the staged file, plus a floor on duration so a 0-byte-ish/corrupt
+     *  capture that somehow still "prepares" can't pass as a clip. */
+    private fun validateAudio(f: File): Boolean {
+        val p = MediaPlayer()
+        return try {
+            p.setDataSource(f.absolutePath)
+            p.prepare()
+            p.duration > 300
+        } catch (e: Exception) {
+            Log.w(TAG, "Import validation failed for ${f.name}", e)
+            false
+        } finally {
+            runCatching { p.release() }
+        }
+    }
+
+    /** Prefer the picked document's own filename (SAF usually reports one);
+     *  fall back to mapping its MIME type. This only decides the STORED
+     *  filename — MediaPlayer plays by sniffing content, never by extension. */
+    private fun extensionForDocument(uri: Uri): String {
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) {
+                extensionFromName(c.getString(0))?.let { return it }
+            }
+        }
+        return extensionForMime(contentResolver.getType(uri))
+    }
+
+    /** Same idea for a Drive download: try the Content-Disposition filename
+     *  Drive sends for small/public files, else fall back to Content-Type. */
+    private fun extensionForDrive(conn: HttpURLConnection): String {
+        val disposition = conn.getHeaderField("Content-Disposition")
+        val name = disposition?.let { Regex("""filename="?([^";]+)"?""").find(it)?.groupValues?.get(1) }
+        extensionFromName(name)?.let { return it }
+        return extensionForMime(conn.contentType?.substringBefore(';'))
+    }
+
+    private fun extensionFromName(name: String?): String? {
+        val ext = name?.substringAfterLast('.', "")?.trim()?.lowercase()
+        return ext?.takeIf { it.isNotBlank() && it.length in 2..4 }
+    }
+
+    private fun extensionForMime(mime: String?): String = when (mime?.trim()?.lowercase()) {
+        "audio/mpeg", "audio/mp3" -> "mp3"
+        "audio/ogg", "application/ogg" -> "ogg"
+        "audio/wav", "audio/x-wav", "audio/wave" -> "wav"
+        else -> "m4a"   // covers audio/mp4, audio/x-m4a, video/mp4, and any unknown type
+    }
+
     // ----------------------------------------------------------------- delete
 
     private fun confirmDelete(spec: ClipSpec) {
@@ -355,5 +604,6 @@ class RecorderActivity : Activity() {
     companion object {
         private const val TAG = "RecorderActivity"
         private const val REQ_MIC = 41
+        private const val REQ_FILE = 42
     }
 }

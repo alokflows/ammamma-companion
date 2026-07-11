@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One recordable line: Telugu label + "say this" hint, then big buttons.
+<!-- One recordable line: Telugu label + "say this" hint, then buttons.
      Play/Delete only appear once a clip exists; the row turns light green then
-     (background swapped in code to card_clip_done). -->
+     (background swapped in code to card_clip_done). Import (⋮) is always
+     visible — a from-file/from-Drive import can replace an existing clip too.
+     Buttons are 48dp (not 56dp) so the fourth one doesn't crowd the row. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -34,40 +36,55 @@
             android:textSize="13sp" />
     </LinearLayout>
 
+    <!-- ⋮ import from a file already on the phone, or a Google Drive link —
+         expands to a small chooser dialog (kept as one button so the row
+         never grows past four small buttons). -->
+    <Button
+        android:id="@+id/btnImport"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/btn_outline"
+        android:padding="0dp"
+        android:text="⋮"
+        android:textColor="#402A1C"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
     <!-- ▶ listen to the saved clip — only when one exists -->
     <Button
         android:id="@+id/btnPlay"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:layout_marginStart="8dp"
         android:background="@drawable/btn_outline"
         android:padding="0dp"
         android:text="▶"
         android:textColor="#402A1C"
-        android:textSize="20sp" />
+        android:textSize="18sp" />
 
     <!-- ✕ remove the clip (falls back to TTS) — only when one exists -->
     <Button
         android:id="@+id/btnDelete"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:layout_marginStart="8dp"
         android:background="@drawable/btn_outline"
         android:padding="0dp"
         android:text="✕"
         android:textColor="#C62828"
-        android:textSize="20sp"
+        android:textSize="18sp"
         android:textStyle="bold" />
 
     <!-- 🎤 record; becomes a red ⏹ stop while recording -->
     <Button
         android:id="@+id/btnRecord"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:layout_marginStart="8dp"
         android:background="@drawable/btn_primary_green"
         android:padding="0dp"
         android:text="🎤"
         android:textColor="#FFFFFF"
-        android:textSize="20sp" />
+        android:textSize="18sp" />
 </LinearLayout>

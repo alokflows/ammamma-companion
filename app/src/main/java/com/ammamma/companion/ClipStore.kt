@@ -37,4 +37,34 @@ object ClipStore {
 
     /** Where a fresh recording for [key] should end up (AAC in an MP4 box). */
     fun targetFile(c: Context, key: String): File = File(dir(c), "$key.m4a")
+
+    /**
+     * Staging file for a validated import (from-file / from-Drive) of [key].
+     * Lives in cacheDir, NOT clips/ — on purpose: fileFor()/Announcer both match
+     * ANY file in clips/ whose name-without-extension equals the key, so a
+     * partially-copied or not-yet-validated import sitting inside clips/ would be
+     * found and played as if it were real (nameWithoutExtension of "key.tmp" is
+     * still "key"). Staging it outside that directory means an interrupted
+     * download can never be mistaken for a working clip.
+     */
+    fun stagingFile(c: Context, key: String): File = File(c.cacheDir, "import_$key.tmp")
+
+    /**
+     * Install an already-validated import: wipe every existing variant of [key]
+     * (any extension — see [delete]) then move the staged file into clips/ under
+     * its OWN extension (MediaPlayer sniffs real content, not the filename, so
+     * keeping mp3/ogg/wav/m4a as given is safe and keeps fileFor()'s lookup
+     * working). Falls back to copy+delete if renameTo refuses (different
+     * filesystem) — the caller has already proven [staged] is good audio, so
+     * this step must not lose it.
+     */
+    fun commitImport(c: Context, key: String, staged: File, ext: String): File {
+        delete(c, key)
+        val target = File(dir(c), "$key.$ext")
+        if (!staged.renameTo(target)) {
+            staged.copyTo(target, overwrite = true)
+            staged.delete()
+        }
+        return target
+    }
 }
