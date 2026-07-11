@@ -7,6 +7,7 @@ import android.media.MediaPlayer
 import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.speech.tts.Voice
 import android.util.Log
 import java.io.File
 import java.util.Locale
@@ -88,10 +89,6 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
         ttsReady = res != TextToSpeech.LANG_MISSING_DATA && res != TextToSpeech.LANG_NOT_SUPPORTED
         Log.i(TAG, "TTS ready. Telugu available=$ttsReady (result=$res)")
 
-        pickBestTeluguVoice()
-        // Slightly slower than default = clearer for an elderly listener; normal pitch.
-        tts?.setSpeechRate(0.92f)
-        tts?.setPitch(1.0f)
         // Speak as ordinary MEDIA: it plays on STREAM_MUSIC, the one stream we raise
         // to max in raiseVolumeToMax(). (We used to use the accessibility stream,
         // whose volume the app can't always set — so speech was sometimes inaudible.)
@@ -106,14 +103,28 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
             Log.w(TAG, "TTS audio attributes not accepted by this engine", e)
         }
         // Restore volume when TTS finishes — but only if nothing else is speaking.
+        // An "audition" utterance (Settings ▶ preview) also needs the REAL saved
+        // voice/rate/pitch put back once its sample ends, so a preview can never
+        // leak into the voice grandma actually hears the rest of the time.
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {}
-            override fun onDone(utteranceId: String?) = restoreVolumeIfIdle()
-            @Deprecated("legacy") override fun onError(utteranceId: String?) = restoreVolumeIfIdle()
+            override fun onDone(utteranceId: String?) {
+                if (utteranceId == AUDITION_UTTERANCE) applyVoiceSettings(context)
+                restoreVolumeIfIdle()
+            }
+            @Deprecated("legacy") override fun onError(utteranceId: String?) {
+                if (utteranceId == AUDITION_UTTERANCE) applyVoiceSettings(context)
+                restoreVolumeIfIdle()
+            }
         })
 
-        // Engine is ready — say anything that arrived while it was starting up.
+        // Engine is ready — flip the flag BEFORE configuring voice/rate/pitch,
+        // since applyVoiceSettings() itself checks initDone (it's also called
+        // later from Settings, when the engine is long since up).
         initDone = true
+        applyVoiceSettings(context)
+
+        // Say anything that arrived while it was starting up.
         pendingText?.let { queued ->
             val wasImportant = pendingImportant
             pendingText = null
@@ -139,6 +150,84 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
             Log.i(TAG, "TTS voice: ${best.name} (quality=${best.quality}, offline)")
         } catch (e: Exception) {
             Log.w(TAG, "Voice listing unsupported; keeping engine default", e)
+        }
+    }
+
+    /**
+     * Apply the saved voice + rate + pitch to the (already-initialized) engine.
+     * Called once from onInit right after the engine comes up, and again any
+     * time Settings changes so a new choice is live without an app restart.
+     * Safe to call while idle; a no-op if the engine isn't ready yet (onInit
+     * will call it itself once it is — see the ordering note there).
+     */
+    fun applyVoiceSettings(c: Context) {
+        val engine = tts ?: return
+        if (!initDone) return
+        val savedName = Settings.ttsVoiceName(c)
+        val chosen = if (savedName.isNotEmpty()) {
+            runCatching { engine.voices?.firstOrNull { it.name == savedName } }.getOrNull()
+        } else null
+        if (chosen != null) {
+            runCatching { engine.voice = chosen }
+            Log.i(TAG, "TTS voice: ${chosen.name} (saved choice)")
+        } else {
+            // "" saved (Automatic), or the saved voice vanished (e.g. TTS data
+            // was cleared/reinstalled) -> fall back to the best offline Telugu
+            // voice, same as before this setting existed.
+            pickBestTeluguVoice()
+        }
+        // Always apply the saved rate/pitch — no more hardcoded 0.92f/1.0f.
+        runCatching { engine.setSpeechRate(Settings.ttsRate(c)) }
+        runCatching { engine.setPitch(Settings.ttsPitch(c)) }
+    }
+
+    /**
+     * Telugu voices this engine can offer, best first. OFFLINE voices always
+     * sort ahead of any that need the network — the phone must speak with no
+     * internet, so a network voice never looks like the obvious pick even if
+     * the engine ranks its quality higher. Empty when the engine isn't ready
+     * yet, or the engine can't list voices at all (guarded like
+     * pickBestTeluguVoice — some simple engines, e.g. eSpeak, don't support this).
+     */
+    fun availableTeluguVoices(): List<Voice> {
+        if (!initDone) return emptyList()
+        return try {
+            tts?.voices
+                ?.filter { it.locale.language == "te" }
+                ?.sortedWith(compareBy<Voice> { it.isNetworkConnectionRequired }.thenByDescending { it.quality })
+                .orEmpty()
+        } catch (e: Exception) {
+            Log.w(TAG, "Voice listing unsupported; no Telugu voices to offer", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Preview a candidate voice/rate/pitch for the Settings screen — a ▶ row
+     * button, or a rate/pitch slider release. Nothing is saved here: once the
+     * sample finishes (or fails), the "audition" branch in the utterance
+     * listener above puts back whatever IS actually saved, so an unsaved
+     * preview can never leak into the voice grandma actually hears elsewhere.
+     * [voice] null previews "Automatic" (the engine's own best-Telugu pick).
+     */
+    fun audition(voice: Voice?, ratePercent: Int, pitchPercent: Int) {
+        val engine = tts ?: return
+        if (!initDone) return   // nothing to preview until the engine is actually up
+        // ONE VOICE: stop whatever is currently playing before the preview starts.
+        silenceCurrent()
+        raiseVolume(important = false)
+        try {
+            if (voice != null) engine.voice = voice else pickBestTeluguVoice()
+            engine.setSpeechRate(ratePercent.coerceIn(50, 150) / 100f)
+            engine.setPitch(pitchPercent.coerceIn(50, 150) / 100f)
+        } catch (e: Exception) {
+            Log.w(TAG, "Audition voice/rate/pitch not accepted", e)
+        }
+        val r = engine.speak(AUDITION_SAMPLE, TextToSpeech.QUEUE_FLUSH, null, AUDITION_UTTERANCE)
+        if (r != TextToSpeech.SUCCESS) {
+            Log.w(TAG, "Audition speak() failed (result=$r)")
+            restoreVolumeIfIdle()
+            applyVoiceSettings(context)
         }
     }
 
@@ -349,6 +438,13 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
 
     companion object {
         private const val TAG = "Ammamma"
+
+        // Voice audition (v1.1 Settings): a distinct utteranceId so the shared
+        // utterance listener knows to restore the REAL saved voice/rate/pitch
+        // afterwards, and a fixed warm sample line so every previewed voice
+        // says the exact same thing (a fair comparison between voices).
+        private const val AUDITION_UTTERANCE = "audition"
+        private const val AUDITION_SAMPLE = "నమస్తే అమ్మమ్మ, ఇది నీ కోసం ఒక కొత్త గొంతు"
 
         // One voice for the whole app — the service and every screen share it, so we
         // never run two TTS engines at once or talk over ourselves. It lives for the
