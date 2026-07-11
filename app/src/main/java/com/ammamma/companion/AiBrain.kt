@@ -7,10 +7,14 @@ import org.json.JSONObject
 import java.io.BufferedReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * The companion's brain. Sends what Ammamma said to an OpenAI-compatible chat API
- * and gets back a short, warm Telugu reply — or a small command (call / open app).
+ * and gets back a warm, complete Telugu reply — or a small command (call / open app /
+ * show a video / ask a clarifying question).
  *
  * Provider-agnostic and MULTI-KEY: the family can paste one or more keys (Groq,
  * OpenRouter, OpenAI…). The provider is detected from each key's prefix, so no URL
@@ -30,12 +34,28 @@ object AiBrain {
 
     fun forgetAutoModel() = autoModelCache.clear()
 
+    /**
+     * Plain-chat prompt. Ammamma is intelligent and deserves a real answer, not a
+     * clipped one: a recipe or a story gets the FULL, complete reply (every step, in
+     * order, with quantities and timing); a greeting gets one warm line. The model
+     * must never pad a small answer and never truncate a real one, and must never
+     * just be honest when it does not know or cannot do something.
+     */
     private const val SYSTEM_PROMPT =
-        "You are Ammamma's warm companion, like a caring family member. " +
-        "Ammamma is an elderly Telugu grandmother who cannot read and only speaks Telugu. " +
-        "ALWAYS reply ONLY in simple, spoken Telugu, in one or two short sentences. " +
-        "Never use English words, never use technical words. Be affectionate, gentle and clear. " +
-        "You can chat about cooking, family, stories, devotion, and daily life."
+        "You are Ammamma's warm, intelligent companion — like a caring, respectful family member. " +
+        "Ammamma is an elderly Telugu grandmother who cannot read and speaks only Telugu. She is " +
+        "sharp and fully capable; never talk down to her and never sound like you are humoring a " +
+        "child. ALWAYS reply ONLY in natural, spoken Telugu script — never English words, never " +
+        "Latin letters, never markdown, never emoji, never numbered or bulleted lists (say them as " +
+        "flowing spoken sentences instead, e.g. \"మొదట…, తరువాత…, ఆఖరున…\"). " +
+        "Match your LENGTH to her question: a greeting or small remark gets one warm line; a recipe, " +
+        "a story, or instructions get the FULL, complete answer with every step, quantity, order and " +
+        "timing she needs. Never cut a real answer short to be brief, and never pad a simple answer " +
+        "with filler. Be honest above all: if you do not know something, or something is impossible, " +
+        "or a feature is not on this phone, say so plainly and warmly — never invent an answer, and " +
+        "never claim you already did something you did not do. Never simply repeat her own words " +
+        "back to her as your reply. You can talk about cooking, family, health, devotion, stories, " +
+        "news, and daily life."
 
     /**
      * [text] is what grandma hears (warm Telugu). [detail] is for the FAMILY: the
@@ -50,22 +70,35 @@ object AiBrain {
 
     /**
      * Ask the brain for a warm Telugu reply. BLOCKING — run OFF the main thread.
-     * [extraContext] can carry facts (e.g. today's weather) for the model to phrase.
+     * [history] is prior (role, content) turns of this session, oldest first — see
+     * ChatStore.historyForApi — so a recipe half-explained a minute ago is still in
+     * context. [extraContext] can carry facts (e.g. today's weather) for the model
+     * to phrase.
      */
-    fun ask(context: Context, userText: String, extraContext: String? = null): Result {
+    fun ask(
+        context: Context,
+        userText: String,
+        history: List<Pair<String, String>> = emptyList(),
+        extraContext: String? = null
+    ): Result {
         val messages = JSONArray()
         messages.put(msg("system", SYSTEM_PROMPT))
         if (!extraContext.isNullOrBlank()) messages.put(msg("system", extraContext))
+        history.forEach { (role, content) -> messages.put(msg(role, content)) }
         messages.put(msg("user", userText))
         return runAcrossAccounts(context, messages)
     }
 
     /**
      * Voice-assistant turn. The model is told the available contact NAMES (never
-     * their numbers — privacy) and app names, and must reply with ONE compact JSON:
+     * their numbers — privacy), the app names, and the current date/time, and must
+     * reply with ONE compact JSON:
      *   {"action":"call","name":"<closest contact>"}
+     *   {"action":"call","number":"<digits she said/typed>"}
      *   {"action":"open","app":"<app>"}
-     *   {"action":"chat","say":"<one warm Telugu sentence>"}
+     *   {"action":"video","query":"<what to search for>"}
+     *   {"action":"ask","say":"<one short clarifying Telugu question>"}
+     *   {"action":"chat","say":"<full warm Telugu reply>"}
      * The raw reply comes back in [Result.text]; CommandRouter parses it.
      */
     fun assistant(
@@ -73,21 +106,40 @@ object AiBrain {
         userText: String,
         contactNames: List<String>,
         appNames: List<String>,
+        history: List<Pair<String, String>> = emptyList(),
         extraContext: String? = null
     ): Result {
+        val now = SimpleDateFormat("yyyy-MM-dd (EEEE) HH:mm", Locale.US).format(Date())
         val sys =
-            "You are Ammamma's companion. She is an elderly Telugu grandmother who only speaks Telugu. " +
-            "Decide what she wants and reply with ONLY one compact JSON object, nothing else:\n" +
-            "- To CALL a person: {\"action\":\"call\",\"name\":\"<closest name from the contacts list>\"}\n" +
-            "- To OPEN an app: {\"action\":\"open\",\"app\":\"<app name, lowercase english>\"}\n" +
-            "- Anything else (chat, questions, feelings, weather, stories): " +
-            "{\"action\":\"chat\",\"say\":\"<one or two short warm sentences in simple spoken Telugu>\"}\n" +
-            "Contacts: [" + contactNames.joinToString(", ") + "]. " +
-            "Apps she might name: [" + appNames.joinToString(", ") + "]. " +
-            "Never invent a contact not in the list. Reply with JSON only."
+            "You are the decision layer for Ammamma's companion phone. Ammamma is an elderly " +
+            "Telugu grandmother who cannot read and speaks only Telugu — she is intelligent and " +
+            "capable; treat her with full respect, never condescension. The PHONE performs every " +
+            "action; you only DECIDE and describe what should happen, in Telugu, for her to hear. " +
+            "Current date/time: $now.\n" +
+            "Read what she said and reply with ONLY one compact JSON object, nothing else, no " +
+            "explanation, no markdown fences:\n" +
+            "- Call a person by name: {\"action\":\"call\",\"name\":\"<closest name from her contacts list>\"}\n" +
+            "- Call a specific number she said or typed: {\"action\":\"call\",\"number\":\"<digits only>\"}\n" +
+            "- Open an app: {\"action\":\"open\",\"app\":\"<app name, lowercase english>\"}\n" +
+            "- Show a video: {\"action\":\"video\",\"query\":\"<what to search for, in her words>\"}\n" +
+            "- You need ONE more detail before acting, e.g. she hinted at wanting to watch " +
+            "something but did not say to open a video: " +
+            "{\"action\":\"ask\",\"say\":\"<one short, warm, spoken Telugu question>\"}\n" +
+            "- Anything else — chat, questions, feelings, recipes, weather, stories: " +
+            "{\"action\":\"chat\",\"say\":\"<your full warm spoken Telugu reply — complete step-by-step " +
+            "instructions if she asked for a recipe or how to do something, one short line if it is " +
+            "small talk>\"}\n" +
+            "Her contacts: [" + contactNames.joinToString(", ") + "]. " +
+            "Apps on this phone: [" + appNames.joinToString(", ") + "]. " +
+            "Never invent a contact who is not in that list — if you are not sure which contact she " +
+            "means, use \"ask\" instead of guessing. Never claim the phone already did something; " +
+            "only describe what should happen next. If she asks for something impossible, unknown, " +
+            "or not on this phone, say so honestly inside \"say\" — never bluff, never invent. Never " +
+            "just repeat her own words back as the reply. Reply with the JSON object only."
         val messages = JSONArray()
         messages.put(msg("system", sys))
         if (!extraContext.isNullOrBlank()) messages.put(msg("system", extraContext))
+        history.forEach { (role, content) -> messages.put(msg(role, content)) }
         messages.put(msg("user", userText))
         return runAcrossAccounts(context, messages)
     }
@@ -116,7 +168,10 @@ object AiBrain {
     }
 
     private fun chat(base: String, apiKey: String, model: String, messages: JSONArray): Result {
-        val body = JSONObject().put("model", model).put("messages", messages)
+        val body = JSONObject()
+            .put("model", model)
+            .put("messages", messages)
+            .put("max_tokens", 1024)   // a recipe or a story must never be cut off mid-sentence
 
         var conn: HttpURLConnection? = null
         return try {

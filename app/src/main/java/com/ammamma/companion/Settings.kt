@@ -210,4 +210,7 @@ object Settings {
     // Raw strings for pre-filling the Settings fields.
     fun codeWordRaw(c: Context) = prefs(c).getString(KEY_CODE, DEFAULT_CODE).orEmpty()
     fun familyNumbersRaw(c: Context) = prefs(c).getString(KEY_NUMBERS, "").orEmpty()
+
+    /** Talk companion: auto-delete chat sessions untouched for 30+ days. On by default. */
+    fun chatAutoDelete(c: Context): Boolean = prefs(c).getBoolean("chat_auto_delete", true)
 }

@@ -84,6 +84,11 @@
             android:exported="false"
             android:windowSoftInputMode="stateHidden|adjustResize" />
 
+        <!-- The Talk companion's chat-session list (title + relative date, open/delete). -->
+        <activity
+            android:name=".ChatListActivity"
+            android:exported="false" />
+
         <activity
             android:name=".SettingsActivity"
             android:exported="false" />

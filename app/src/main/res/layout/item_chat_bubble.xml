@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One line of the transcript. The adapter aligns this end (her) or start
+     (companion) and swaps the bubble background/text color to match. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="5dp">
+
+    <TextView
+        android:id="@+id/bubbleText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxWidth="290dp"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:textSize="19sp"
+        android:lineSpacingExtra="4dp" />
+</FrameLayout>
