@@ -541,3 +541,54 @@ return; IP ping fine) → HomeWeather fetch thread blocked >15 min, latch held. 
 try/finally on the latch (committed). HttpURLConnection timeouts do NOT cover DNS — remember
 this for every future network feature. Weather tile behavior on the real phone should be fine;
 verify during Alok's install.
+
+## 17. v1.1 "the luxury update" — LIVE session state (2026-07-11 night)
+
+**Standing rule (Alok, permanent):** write this handoff after EVERY finished task — done (shas),
+now (in-flight), next (thinking) — so any account can continue mid-flight. Never batch to session end.
+
+**DONE this session:**
+- v1.0 RELEASED ✅ releases/tag/v1.0 (versionCode 10, signed, ~740KB). All 7 remaining §15
+  gauntlet items PASSED on emulator, zero bugs. master pushed (327739c). §14 backlog = CLOSED.
+- Base-prep `1937b77`: Settings.kt TTS prefs (ttsVoiceName/ttsRate 50-150 dflt 92/ttsPitch dflt 100)
+  + manifest Wi-Fi perms. NOTE: worktrees branch from ORIGIN state → agents told to `git merge master` first.
+- WP-SIRI ✅ branch `worktree-agent-a5537673ea70eb47c` @ f9a70c4 — OfflineIntents.kt runs BEFORE the AI
+  in CommandRouter.resolve(): time/date, battery(real ETA via ChargeState), torch, Wi-Fi, volume,
+  alarm set/cancel (Telugu number words, speaks parsed time back), "ఫోటో పంపు"→CameraSendActivity
+  (string classname), mobile-data honest+settings screen. CAUTION at merge: it cherry-picked two
+  old commits + re-added Wi-Fi perms (its base predated 1937b77) — diff the merge, dedupe manifest.
+- WP-CAM ✅ branch `worktree-agent-a17f6c3537f1c52ba` @ ce17ac5 — CameraSendActivity (camera→preview→
+  huge పంపు→WhatsApp ACTION_SEND + spoken 2-tap lesson, chooser fallback) + hand-rolled read/write
+  ShareFileProvider (repo is zero-dep, no androidx; r/w because camera writes through the URI).
+- WP-VOICE ✅ branch `worktree-agent-a2fab70c0cd0e9ea6` @ 4356b09 — Announcer.applyVoiceSettings/
+  availableTeluguVoices/audition; Settings "గొంతు · Voice" section: auto + per-voice radio+▶,
+  rate/pitch sliders, TTS-settings button. Watch: it moved initDone=true earlier in onInit (reviewed rationale OK, re-verify cold-start pendingText in gauntlet).
+
+**IN FLIGHT right now:**
+- WP-LUX (branch `worktree-agent-a43392435e5899eca`) — the design overhaul, Alok's bar: Telegram-smooth,
+  Gemini ambient floating glows, Apple restraint. GlowBackdrop.kt (3 drifting radial blobs, one
+  ValueAnimator ~30fps, mood tints per screen) + Press.kt (0.96 scale + overshoot spring + haptic +
+  ripple) across Home/Alert/Charging/FindPhone. Reskin ONLY — behavior/ids/flags intact, real info
+  (%, health, ETA) never omitted. Iterating with emulator screenshots + gfxinfo jank budget.
+- WP-CLIP (branch `worktree-agent-a279c50e9ced7419e`) — clip import: per-row "ఫైల్" (SAF) + "Drive"
+  (share-link → uc?export=download, HTML response = not-public error) with VALIDATED-REPLACE
+  (tmp file → MediaPlayer prepare + duration>300ms → atomic rename; failure never harms old clip),
+  auto-play after install. PLUS catalog refactor (sent mid-flight): ClipCatalog.kt = single source
+  of truth for every ClipSpec; RecorderActivity iterates it; new announcement ⇒ row auto-appears.
+
+**NEXT (the plan in my head):**
+1. Merge order: SIRI → CAM → VOICE → CLIP → LUX (LUX last, most files). After each: build. Stitch
+   points: dedupe Wi-Fi perms in manifest; verify CameraSendActivity string-classname intent resolves;
+   verify Announcer API names CAM calls; ClipCatalog vs LUX no overlap (different files).
+2. v1.1 emulator gauntlet: offline verbs (incl. alarm parse→DayScheduler fire), camera flow (emulator
+   camera app), voice picker audition + cold-start greeting regression (Announcer onInit change!),
+   clip import file+Drive+bad-link, all four LUX screens screenshot review + jank %, plus smoke of
+   v1.0 paths (greeting, caller, find-phone, back-consumed).
+3. Release v1.1 (versionCode 11) + memory update + final summary.
+4. QUEUED NEXT SESSION — "beautiful voice" plan (Alok asked for ChatGPT-quality speech): custom/neural
+   TTS on the 2GB Oppo stays infeasible (storage full, SD450) BUT the app speaks a small fixed
+   repertoire → pre-synthesize every ClipCatalog line ONCE with a premium neural TTS voice (Mac-side
+   script: catalog → TTS API → m4a per key), install via WP-CLIP's Drive/file import. She hears a
+   studio voice OFFLINE at zero runtime cost; family recordings still override; only dynamic text
+   (AI replies, caller names, weather) stays on Google TTS + new voice picker. Script name idea:
+   tools/make_clips. Wake word: see §16-F (Porcupine fastest, Vosk free) — unchanged, next session.
