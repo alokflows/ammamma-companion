@@ -99,6 +99,12 @@
             android:screenOrientation="portrait"
             android:exported="false" />
 
+        <!-- "Send this picture": camera -> preview -> WhatsApp with spoken guidance. -->
+        <activity
+            android:name=".CameraSendActivity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
+
         <activity
             android:name=".FindPhoneActivity"
             android:screenOrientation="portrait"
@@ -146,6 +152,15 @@
         <service
             android:name=".LocationReplyService"
             android:exported="false" />
+
+        <!-- Hand-rolled single-file content provider so the camera app and WhatsApp
+             can write/read the send-photo without ever seeing a bare file:// path
+             (see ShareFileProvider for why this isn't androidx FileProvider). -->
+        <provider
+            android:name=".ShareFileProvider"
+            android:authorities="com.ammamma.companion.shareprovider"
+            android:exported="false"
+            android:grantUriPermissions="true" />
 
     </application>
 </manifest>
