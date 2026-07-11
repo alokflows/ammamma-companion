@@ -161,12 +161,28 @@ class MainActivity : Activity() {
      * LEAVE = SILENCE: once she's left the home screen, nothing should keep talking
      * behind her back — EXCEPT the find-my-phone alarm, which must keep sounding
      * however she navigates (that's the whole point of it).
+     *
+     * WHY NOT onStop(): onStop also fires whenever ANOTHER activity merely covers
+     * this one — including our OWN ChargingActivity/AlertActivity (which appear at
+     * the same moment as the "ఛార్జర్ పెట్టారు…" line) and the system incoming-call
+     * screen (which appears while the caller's name is being spoken). Silencing
+     * there chopped those announcements mid-word. onUserLeaveHint() fires only on a
+     * deliberate leave (Home button) and — per the Android docs — deliberately does
+     * NOT fire when an incoming call covers the activity. Back is her closing the
+     * app, so that path silences too.
      */
-    override fun onStop() {
+    override fun onUserLeaveHint() {
         if (!CompanionService.isFindAlarmActive) {
             Announcer.get(this).stopSpeaking()
         }
-        super.onStop()
+        super.onUserLeaveHint()
+    }
+
+    override fun onBackPressed() {
+        if (!CompanionService.isFindAlarmActive) {
+            Announcer.get(this).stopSpeaking()
+        }
+        super.onBackPressed()
     }
 
     private fun updateClock() {
