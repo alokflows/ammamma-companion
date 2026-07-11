@@ -210,4 +210,90 @@ object Settings {
     // Raw strings for pre-filling the Settings fields.
     fun codeWordRaw(c: Context) = prefs(c).getString(KEY_CODE, DEFAULT_CODE).orEmpty()
     fun familyNumbersRaw(c: Context) = prefs(c).getString(KEY_NUMBERS, "").orEmpty()
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SOUNDS (added for the real-device bug batch). Volume + mute + per-category
+    // gates. Appended at the end to keep the classic save() and the rest untouched.
+    // ─────────────────────────────────────────────────────────────────────────
+    private const val KEY_SPEECH_VOLUME = "speech_volume_pct"   // 10..100
+    private const val KEY_VOICE_MUTED = "voice_muted"           // quick-mute
+    private const val KEY_GREETING_ON = "greeting_enabled"      // home hello
+    private const val KEY_UI_SOUNDS_ON = "ui_sounds_enabled"    // gear-tap etc. spoken hints
+    private const val KEY_CHARGE_SOUNDS_ON = "charge_sounds_enabled" // charging/battery lines
+
+    /** Spoken-line loudness as a % of the media stream's max (10–100). Ordinary
+     *  (non-important) lines use this instead of slamming to full volume. */
+    fun speechVolumePercent(c: Context): Int =
+        prefs(c).getInt(KEY_SPEECH_VOLUME, 100).coerceIn(10, 100)
+
+    fun setSpeechVolumePercent(c: Context, pct: Int) {
+        prefs(c).edit().putInt(KEY_SPEECH_VOLUME, pct.coerceIn(10, 100)).apply()
+    }
+
+    /** Quick-mute: when on, ordinary lines are skipped entirely. IMPORTANT lines
+     *  (find-my-phone, urgent low battery) still speak — safety is never muted. */
+    fun voiceMuted(c: Context): Boolean = prefs(c).getBoolean(KEY_VOICE_MUTED, false)
+
+    fun setVoiceMuted(c: Context, muted: Boolean) {
+        prefs(c).edit().putBoolean(KEY_VOICE_MUTED, muted).apply()
+    }
+
+    /** Say "నమస్తే అమ్మమ్మ" when she opens the app. */
+    fun greetingEnabled(c: Context): Boolean = prefs(c).getBoolean(KEY_GREETING_ON, true)
+
+    fun setGreetingEnabled(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean(KEY_GREETING_ON, on).apply()
+    }
+
+    /** Small spoken hints for UI taps (e.g. the gear "this is for the family" line). */
+    fun uiSoundsEnabled(c: Context): Boolean = prefs(c).getBoolean(KEY_UI_SOUNDS_ON, true)
+
+    fun setUiSoundsEnabled(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean(KEY_UI_SOUNDS_ON, on).apply()
+    }
+
+    /** The charging-screen and non-urgent battery spoken lines. (Urgent low-battery
+     *  is important and always speaks, regardless of this toggle or mute.) */
+    fun chargingAnnouncementsEnabled(c: Context): Boolean =
+        prefs(c).getBoolean(KEY_CHARGE_SOUNDS_ON, true)
+
+    fun setChargingAnnouncementsEnabled(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean(KEY_CHARGE_SOUNDS_ON, on).apply()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TRAVEL MODE recipients + channels (separate from the family/find-phone list).
+    // ─────────────────────────────────────────────────────────────────────────
+    private const val KEY_TRAVEL_NUMBERS = "travel_numbers"
+    private const val KEY_TRAVEL_SMS = "travel_sms_enabled"     // default on
+    private const val KEY_TRAVEL_EMAIL = "travel_email_enabled" // default off (not built yet)
+
+    /** Travel-mode recipients. Kept DISTINCT from familyNumbers so the people who get
+     *  location breadcrumbs while she travels can differ from the find-phone senders. */
+    fun travelNumbers(c: Context): List<String> =
+        prefs(c).getString(KEY_TRAVEL_NUMBERS, "").orEmpty()
+            .split(Regex("[,\\n]"))
+            .map { it.filter { ch -> ch.isDigit() || ch == '+' } }
+            .filter { it.length >= 4 }
+
+    fun travelNumbersRaw(c: Context) = prefs(c).getString(KEY_TRAVEL_NUMBERS, "").orEmpty()
+
+    fun saveTravelNumbers(c: Context, raw: String) {
+        prefs(c).edit().putString(KEY_TRAVEL_NUMBERS, raw.trim()).apply()
+    }
+
+    /** Travel mode sends its breadcrumb by SMS. On by default. */
+    fun travelSmsEnabled(c: Context): Boolean = prefs(c).getBoolean(KEY_TRAVEL_SMS, true)
+
+    fun setTravelSmsEnabled(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean(KEY_TRAVEL_SMS, on).apply()
+    }
+
+    /** Email channel — NOT built yet (see TRAVEL_EMAIL.md). Off by default; the UI
+     *  shows it as "coming soon" so the family knows it's a planned relay, not live. */
+    fun travelEmailEnabled(c: Context): Boolean = prefs(c).getBoolean(KEY_TRAVEL_EMAIL, false)
+
+    fun setTravelEmailEnabled(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean(KEY_TRAVEL_EMAIL, on).apply()
+    }
 }

@@ -90,6 +90,98 @@
             android:text="📢 ఫోన్ వెతుకు డెమో · Find-phone demo"
             android:textSize="16sp" />
 
+        <!-- ============ SOUNDS: volume, mute, per-category gates ============ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="శబ్దాలు · Sounds"
+            android:textColor="#5A3720"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Control how loud the phone talks, and which things it speaks about."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <Switch
+            android:id="@+id/muteSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="మాట్లాడొద్దు (మ్యూట్) · Mute all voice"
+            android:textColor="#5A3720"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Safety lines (find-my-phone, urgent low battery) still speak even when muted."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="మాటల వాల్యూమ్ · Speech volume"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <SeekBar
+            android:id="@+id/volumeSeek"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:min="10"
+            android:max="100" />
+
+        <TextView
+            android:id="@+id/volumeLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <Switch
+            android:id="@+id/greetingSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="ఇంటికి వచ్చినప్పుడు నమస్తే · Home greeting"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <Switch
+            android:id="@+id/uiSoundsSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="బటన్ మాటలు · UI tap lines (e.g. the gear hint)"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <Switch
+            android:id="@+id/chargeSoundsSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="ఛార్జింగ్ ప్రకటనలు · Charging announcements"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
         <!-- ============ PERMISSIONS (rows built in code) ============ -->
         <TextView
             android:layout_width="match_parent"
@@ -422,15 +514,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"
-            android:text="ప్రయాణ మోడ్ · Travel mode"
+            android:text="ప్రయాణం · Travel mode"
             android:textColor="#5A3720"
-            android:textSize="15sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="When ON: every time the charger is plugged in or out, the phone silently texts its GPS location to ALL family numbers above AND quietly takes a front + back photo (saved on the phone), showing only a small 'photo taken · message sent' note. The phone still speaks the normal charge line, so it looks ordinary. Turn on when she travels; needs SMS + location + camera permission, no internet."
+            android:text="When ON: every time the charger is plugged in or out, the phone silently sends its GPS location to the travel numbers below (or the family numbers above, if no travel numbers are set) AND quietly takes a front + back photo (saved on the phone only). The phone still speaks the normal charge line, so it looks ordinary. Turn on when she travels; needs SMS + location + camera permission, no internet."
             android:textColor="#8A7361"
             android:textSize="13sp" />
 
@@ -439,8 +531,68 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="పంపించు · Send location on charger events"
+            android:text="ప్రయాణ మోడ్ ఆన్ · Turn on travel mode"
             android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <!-- Travel-mode recipients — a separate list from the family numbers above,
+             so who gets breadcrumbs while she travels can differ from who can ring
+             the phone with the code word. Same row pattern as family numbers. -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="ప్రయాణ నంబర్లు · Travel numbers"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Who gets the location breadcrumb. Leave empty to use the family numbers above instead."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:id="@+id/travelNumbersContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="vertical" />
+
+        <Button
+            android:id="@+id/addTravelNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:paddingVertical="14dp"
+            android:text="＋ నంబర్ జోడించండి · Add travel number"
+            android:textSize="16sp" />
+
+        <!-- Channels: SMS is live today; email is a documented future relay
+             (see TRAVEL_EMAIL.md) — shown disabled so the family knows it's
+             planned, not broken. No WhatsApp channel — SMS/email only. -->
+        <Switch
+            android:id="@+id/travelSmsSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:text="SMS ద్వారా పంపండి · Send by SMS"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <Switch
+            android:id="@+id/travelEmailSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:paddingVertical="8dp"
+            android:enabled="false"
+            android:text="ఇమెయిల్ (త్వరలో) · Email (coming soon)"
+            android:textColor="#B0A08E"
             android:textSize="15sp" />
 
         <Button

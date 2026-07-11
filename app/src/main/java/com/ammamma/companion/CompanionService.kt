@@ -265,7 +265,8 @@ class CompanionService : Service() {
                     stopBatteryLoop()   // charged (or plugged in) → shut up
                     return
                 }
-                announcer.announce("battery_low", "ఛార్జ్ $pct శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి")
+                // Same safety line as BatteryWatcher's first warning — always speaks.
+                announcer.announce("battery_low", "ఛార్జ్ $pct శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి", important = true)
                 handler.postDelayed(this, intervalMs)
             }
         }

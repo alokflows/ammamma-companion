@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -49,6 +50,9 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
     // grandma never loses a line to a cold start (e.g. a call right after boot).
     @Volatile private var initDone = false
     @Volatile private var pendingText: String? = null
+    // Whether the queued line is an IMPORTANT one (find-my-phone / urgent battery):
+    // remembered so it's spoken at full volume even after a cold-start queue.
+    @Volatile private var pendingImportant = false
 
     private var player: MediaPlayer? = null
 
@@ -111,8 +115,10 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
         // Engine is ready — say anything that arrived while it was starting up.
         initDone = true
         pendingText?.let { queued ->
+            val wasImportant = pendingImportant
             pendingText = null
-            speak(queued)
+            pendingImportant = false
+            speak(queued, wasImportant)
         }
     }
 
@@ -139,20 +145,52 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
     /**
      * Speak an event. [eventKey] names the recorded clip to prefer; [fallbackText]
      * is what TTS says if there's no clip yet.
+     *
+     * [important] marks a safety line (find-my-phone, urgent low battery): it ignores
+     * the quick-mute AND ignores the volume-percent setting (always full volume).
+     * Ordinary lines are skipped when muted and play at the family-set volume percent.
      */
-    fun announce(eventKey: String, fallbackText: String) {
+    fun announce(eventKey: String, fallbackText: String, important: Boolean = false) {
+        if (skipBecauseMuted(important, fallbackText)) return
         val clip = findClip(eventKey)
         if (clip != null) {
-            raiseVolumeToMax()
+            // ONE VOICE: a clip and a TTS line must never overlap. Stop whatever is
+            // playing right now (the other engine too) before this clip starts.
+            silenceCurrent()
+            raiseVolume(important)
             playClip(clip)
         } else {
-            speak(fallbackText)
+            speak(fallbackText, important)
         }
     }
 
     /** Speak arbitrary text (e.g. a live AI reply) via TTS — no clip lookup. */
-    fun say(text: String) {
-        speak(text)
+    fun say(text: String, important: Boolean = false) {
+        if (skipBecauseMuted(important, text)) return
+        speak(text, important)
+    }
+
+    /** True (and logs) when a non-important line should be dropped because the family
+     *  has flipped the quick-mute. Important lines are never dropped. */
+    private fun skipBecauseMuted(important: Boolean, text: String): Boolean {
+        if (important) return false
+        if (!Settings.voiceMuted(context)) return false
+        Log.i(TAG, "Muted — skipping ordinary line: \"$text\"")
+        return true
+    }
+
+    /**
+     * ONE VOICE, enforced. Stop the current TTS utterance AND any playing clip AND
+     * any line still queued behind engine startup — WITHOUT restoring the saved
+     * volume, because a new line is about to start and will keep the level raised.
+     * (stopSpeaking() is the public "go fully idle + restore" variant.)
+     */
+    private fun silenceCurrent() {
+        pendingText = null
+        pendingImportant = false
+        runCatching { tts?.stop() }
+        player?.run { runCatching { if (isPlaying) stop() }; release() }
+        player = null
     }
 
     private fun findClip(eventKey: String): File? {
@@ -177,7 +215,7 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
         }
     }
 
-    private fun speak(text: String) {
+    private fun speak(text: String, important: Boolean = false) {
         if (text.isBlank()) return
         // SELF-HEAL: if the engine was never created or got torn down, bring it back.
         // The line is then queued and spoken from onInit — never dropped.
@@ -187,10 +225,15 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
         }
         if (!initDone) {
             pendingText = text
+            pendingImportant = important
             Log.i(TAG, "TTS still starting; queued: \"$text\"")
             return
         }
-        raiseVolumeToMax()
+        // ONE VOICE: stop any clip that might be playing so it can't overlap TTS.
+        // (QUEUE_FLUSH below only flushes other TTS, not a MediaPlayer clip.)
+        player?.run { runCatching { if (isPlaying) stop() }; release() }
+        player = null
+        raiseVolume(important)
         val r = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "announce")
         if (r == TextToSpeech.SUCCESS) {
             Log.i(TAG, "TTS speaking: \"$text\"")
@@ -201,17 +244,23 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
         }
     }
 
-    private fun raiseVolumeToMax() {
+    /**
+     * Raise the media stream for a spoken line. Ordinary lines go to the family-set
+     * percentage of max (Settings.speechVolumePercent) — the phone used to SLAM every
+     * line to full volume, which startled her. IMPORTANT lines (find-my-phone, urgent
+     * low battery) still go to full max so a safety alert is never quiet.
+     */
+    private fun raiseVolume(important: Boolean) {
         // Save her level ONCE per burst of speech; overlapping lines must not stack
         // saves (which would later restore to an already-raised value).
         if (savedVolume < 0) savedVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
-        runCatching {
-            audio.setStreamVolume(
-                AudioManager.STREAM_MUSIC,
-                audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
-                0
-            )
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val target = if (important) {
+            max
+        } else {
+            (max * Settings.speechVolumePercent(context) / 100).coerceIn(1, max)
         }
+        runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0) }
     }
 
     /**
@@ -311,5 +360,26 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
             instance ?: synchronized(this) {
                 instance ?: Announcer(context.applicationContext).also { instance = it }
             }
+
+        // GREETING ONCE PER SESSION: a process-level timestamp (not tied to any one
+        // Activity, so it survives an Activity being torn down and recreated — though
+        // portrait lock already prevents that on rotation). elapsedRealtime() is used
+        // because it can't be fooled by the user changing the clock.
+        private const val GREETING_COOLDOWN_MS = 30 * 60 * 1000L
+        @Volatile private var lastGreetingAtElapsed = -1L
+
+        /**
+         * True at most once every 30 minutes for the whole app's lifetime. Marks the
+         * greeting as said (starts the cooldown) the moment it returns true — the
+         * caller is expected to actually speak right after checking this.
+         */
+        fun shouldGreetNow(): Boolean {
+            val now = SystemClock.elapsedRealtime()
+            if (lastGreetingAtElapsed >= 0 && now - lastGreetingAtElapsed < GREETING_COOLDOWN_MS) {
+                return false
+            }
+            lastGreetingAtElapsed = now
+            return true
+        }
     }
 }

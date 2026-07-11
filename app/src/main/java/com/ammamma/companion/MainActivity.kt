@@ -70,11 +70,14 @@ class MainActivity : Activity() {
         date = findViewById(R.id.date)
         buildFaceGrid()
 
-        // Speak a hello when she opens the app (once per open, not on every resume).
+        // Speak a hello when she opens the app — but only once per 30 minutes (not
+        // on every resume/re-open) AND only if the family left the greeting on.
         // The home screen used to be completely silent — for someone who can't read,
         // that's indistinguishable from a broken phone. Clip key so the family can
         // later record this greeting in their own voice.
-        Announcer.get(this).announce("home_greeting", "నమస్తే అమ్మమ్మ")
+        if (Settings.greetingEnabled(this) && Announcer.shouldGreetNow()) {
+            Announcer.get(this).announce("home_greeting", "నమస్తే అమ్మమ్మ")
+        }
 
         findViewById<View>(R.id.talkButton).setOnClickListener {
             startActivity(Intent(this, TalkActivity::class.java))
@@ -86,12 +89,54 @@ class MainActivity : Activity() {
         val gear = findViewById<View>(R.id.settings)
         gear.setOnClickListener {
             Toast.makeText(this, "కుటుంబం కోసం — నొక్కి పట్టుకోండి", Toast.LENGTH_SHORT).show()
-            // She can't read the toast — say it too (every state she can reach speaks).
-            Announcer.get(this).say("ఇది ఇంట్లో వాళ్ళ కోసం అమ్మమ్మ")
+            // She can't read the toast — say it too (every state she can reach speaks),
+            // unless the family switched off UI-tap lines in Settings.
+            if (Settings.uiSoundsEnabled(this)) {
+                Announcer.get(this).say("ఇది ఇంట్లో వాళ్ళ కోసం అమ్మమ్మ")
+            }
         }
         gear.setOnLongClickListener {
             startActivity(Intent(this, SettingsActivity::class.java)); true
         }
+
+        installMuteToggle(gear)
+    }
+
+    /**
+     * A small speaker toggle (🔊/🔇) placed next to the gear, code-built so the home
+     * layout XML stays untouched. Flips the master quick-mute; the icon itself is the
+     * only feedback — no spoken line on mute (spec: muting must not talk about itself).
+     */
+    private fun installMuteToggle(gear: View) {
+        val row = gear.parent as? LinearLayout ?: return
+        val gearIndex = row.indexOfChild(gear)
+        row.removeView(gear)
+
+        val topRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.END or android.view.Gravity.CENTER_VERTICAL
+        }
+        val muteToggle = TextView(this).apply {
+            textSize = 22f
+            setPadding(dp(6), dp(2), dp(10), dp(2))
+            setTextColor(Color.parseColor("#8A7361"))
+            isClickable = true
+            isFocusable = true
+        }
+        fun renderMuteIcon() {
+            muteToggle.text = if (Settings.voiceMuted(this)) "🔇" else "🔊"
+        }
+        renderMuteIcon()
+        muteToggle.setOnClickListener {
+            Settings.setVoiceMuted(this, !Settings.voiceMuted(this))
+            renderMuteIcon()   // visually obvious state change; no spoken feedback
+        }
+        topRow.addView(muteToggle)
+        topRow.addView(gear, LinearLayout.LayoutParams(dp(30), dp(30)))
+        row.addView(
+            topRow, gearIndex,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        )
     }
 
     override fun onResume() {
@@ -110,6 +155,18 @@ class MainActivity : Activity() {
     override fun onPause() {
         ui.removeCallbacks(clockTick)
         super.onPause()
+    }
+
+    /**
+     * LEAVE = SILENCE: once she's left the home screen, nothing should keep talking
+     * behind her back — EXCEPT the find-my-phone alarm, which must keep sounding
+     * however she navigates (that's the whole point of it).
+     */
+    override fun onStop() {
+        if (!CompanionService.isFindAlarmActive) {
+            Announcer.get(this).stopSpeaking()
+        }
+        super.onStop()
     }
 
     private fun updateClock() {

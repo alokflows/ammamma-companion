@@ -8,10 +8,12 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.BatteryManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
@@ -163,15 +165,42 @@ class LocationReplyService : Service() {
             launch(context, listOf(sender), PREFIX_FIND)
         }
 
-        /** Travel mode: charger plugged in/out -> ping EVERY family number. */
+        /**
+         * Travel mode: charger plugged in/out -> ping the travel-mode recipients.
+         * Uses Settings.travelNumbers; if the family never set those up, falls back
+         * to familyNumbers (logged) so travel mode still works out of the box. Only
+         * sends when the SMS channel is on (Settings.travelSmsEnabled) — the family
+         * may turn this channel off once email (see TRAVEL_EMAIL.md) exists.
+         */
         fun startTravelPing(context: Context, pluggedIn: Boolean) {
-            val numbers = Settings.familyNumbers(context)
+            if (!Settings.travelSmsEnabled(context)) {
+                Log.i(TAG, "Travel mode ping skipped: SMS channel is off")
+                return
+            }
+            var numbers = Settings.travelNumbers(context)
             if (numbers.isEmpty()) {
-                Log.w(TAG, "Travel mode ping skipped: no family numbers saved")
+                numbers = Settings.familyNumbers(context)
+                if (numbers.isNotEmpty()) {
+                    Log.i(TAG, "No travel numbers saved; falling back to family numbers")
+                }
+            }
+            if (numbers.isEmpty()) {
+                Log.w(TAG, "Travel mode ping skipped: no travel or family numbers saved")
                 return
             }
             val what = if (pluggedIn) "plugged IN" else "plugged OUT"
-            launch(context, numbers, "Travel mode: charger $what. Ammamma phone is here:")
+            val pct = currentBatteryPercent(context)
+            val battInfo = if (pct >= 0) "Battery $pct%, charger $what." else "Charger $what."
+            launch(context, numbers, "Travel mode: $battInfo Ammamma phone is here:")
+        }
+
+        /** Read the current battery % from the sticky battery broadcast (-1 if unknown). */
+        private fun currentBatteryPercent(context: Context): Int {
+            val i = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                ?: return -1
+            val level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+            return if (scale > 0 && level >= 0) level * 100 / scale else level
         }
 
         private fun launch(context: Context, recipients: List<String>, prefix: String) {

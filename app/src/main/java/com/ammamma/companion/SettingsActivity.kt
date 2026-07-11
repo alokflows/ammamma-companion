@@ -16,6 +16,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -42,6 +43,7 @@ class SettingsActivity : Activity() {
     private lateinit var numbersContainer: LinearLayout
     private lateinit var callerSeconds: EditText
     private lateinit var callerTimes: EditText
+    private lateinit var travelNumbersContainer: LinearLayout
 
     // Permissions section: header "all good" line, the rows container, and the
     // status icon for each row so onResume can refresh every tick in one pass.
@@ -103,15 +105,70 @@ class SettingsActivity : Activity() {
             }
         }
 
+        // Travel numbers: separate list from family numbers, same row pattern.
+        travelNumbersContainer = findViewById(R.id.travelNumbersContainer)
+        val savedTravel = Settings.travelNumbers(this)
+        if (savedTravel.isEmpty()) addTravelNumberRow("") else savedTravel.forEach { addTravelNumberRow(it) }
+        findViewById<Button>(R.id.addTravelNumber).setOnClickListener { addTravelNumberRow("") }
+
+        // Travel channels: SMS is live; email is disabled ("coming soon" — see
+        // TRAVEL_EMAIL.md), so it's shown but never wired to a listener.
+        findViewById<Switch>(R.id.travelSmsSwitch).apply {
+            isChecked = Settings.travelSmsEnabled(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on ->
+                Settings.setTravelSmsEnabled(this@SettingsActivity, on)
+            }
+        }
+        findViewById<Switch>(R.id.travelEmailSwitch).isChecked = Settings.travelEmailEnabled(this)
+
         // One row per saved number; a single empty row when none yet.
         val saved = Settings.familyNumbers(this)
         if (saved.isEmpty()) addNumberRow("") else saved.forEach { addNumberRow(it) }
         findViewById<Button>(R.id.addNumber).setOnClickListener { addNumberRow("") }
 
+        wireSoundsSection()
+
         findViewById<Button>(R.id.save).setOnClickListener { save() }
         findViewById<Button>(R.id.testAi).setOnClickListener { testAi() }
         wireDemos()
         buildPermissionRows()
+    }
+
+    /** Sounds section: volume, master mute, and the per-category speech toggles.
+     *  Every control applies immediately (no Save button needed), like the other
+     *  plain switches on this screen. */
+    private fun wireSoundsSection() {
+        findViewById<Switch>(R.id.muteSwitch).apply {
+            isChecked = Settings.voiceMuted(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Settings.setVoiceMuted(this@SettingsActivity, on) }
+        }
+        findViewById<Switch>(R.id.greetingSwitch).apply {
+            isChecked = Settings.greetingEnabled(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Settings.setGreetingEnabled(this@SettingsActivity, on) }
+        }
+        findViewById<Switch>(R.id.uiSoundsSwitch).apply {
+            isChecked = Settings.uiSoundsEnabled(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Settings.setUiSoundsEnabled(this@SettingsActivity, on) }
+        }
+        findViewById<Switch>(R.id.chargeSoundsSwitch).apply {
+            isChecked = Settings.chargingAnnouncementsEnabled(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Settings.setChargingAnnouncementsEnabled(this@SettingsActivity, on) }
+        }
+
+        val volumeSeek = findViewById<SeekBar>(R.id.volumeSeek)
+        val volumeLabel = findViewById<TextView>(R.id.volumeLabel)
+        val startPct = Settings.speechVolumePercent(this)
+        volumeSeek.progress = startPct
+        volumeLabel.text = "$startPct%"
+        volumeSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, value: Int, fromUser: Boolean) {
+                volumeLabel.text = "$value%"
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                Settings.setSpeechVolumePercent(this@SettingsActivity, seekBar?.progress ?: startPct)
+            }
+        })
     }
 
     // --- AI: one row per key. Each row has a "Get models ▾" that lets the family
@@ -312,6 +369,38 @@ class SettingsActivity : Activity() {
         return numbers.joinToString(",")
     }
 
+    // --- Travel-number rows: same pattern as the family-number rows above, but a
+    //     separate list (Settings.travelNumbers) and container. ---
+    private fun addTravelNumberRow(prefill: String) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        row.addView(EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_PHONE
+            hint = "+91 98xxxxxxxx"
+            setText(prefill)
+            setTextColor(Color.parseColor("#402A1C"))
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(Button(this).apply {
+            text = "✕"
+            textSize = 18f
+            setOnClickListener { travelNumbersContainer.removeView(row) }
+        }, LinearLayout.LayoutParams(dp(56), dp(48)))
+        travelNumbersContainer.addView(row)
+    }
+
+    private fun collectTravelNumbers(): String {
+        val numbers = mutableListOf<String>()
+        for (i in 0 until travelNumbersContainer.childCount) {
+            val row = travelNumbersContainer.getChildAt(i) as? LinearLayout ?: continue
+            val edit = row.getChildAt(0) as? EditText ?: continue
+            val n = edit.text.toString().filter { it.isDigit() || it == '+' }
+            if (n.length >= 4) numbers.add(n)
+        }
+        return numbers.joinToString(",")
+    }
+
     private fun save() {
         Settings.save(
             this,
@@ -332,6 +421,7 @@ class SettingsActivity : Activity() {
             callerSeconds.text.toString(),
             callerTimes.text.toString()
         )
+        Settings.saveTravelNumbers(this, collectTravelNumbers())
         Toast.makeText(this, "సేవ్ అయ్యింది · Saved", Toast.LENGTH_SHORT).show()
 
         // Find-my-phone + grandpa finder need: read incoming SMS, send the location

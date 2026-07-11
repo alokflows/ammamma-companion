@@ -41,8 +41,13 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
             Intent.ACTION_POWER_CONNECTED -> {
                 val pct = currentPercent(context)
                 ChargeState.onConnected(pct)
-                // "Charger connected, now X percent."
-                announcer.announce("charger_connected", "ఛార్జర్ పెట్టారు, ఇప్పుడు $pct శాతం ఉంది")
+                // CHARGING SPEAKS FIRST: this line fires the instant the charger event
+                // arrives, before ChargingActivity's window has even drawn — the detail
+                // (health, time-to-full) is computed later, inside that screen. This is
+                // a non-urgent line, so it respects the family's toggle.
+                if (Settings.chargingAnnouncementsEnabled(context)) {
+                    announcer.announce("charger_connected", "ఛార్జర్ పెట్టారు, ఇప్పుడు $pct శాతం ఉంది")
+                }
                 ChargingActivity.show(context)
                 // Travel mode: every charger event silently texts the family
                 // WHERE the phone is — a breadcrumb trail when she's away from home.
@@ -56,8 +61,10 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
                 ChargeState.onDisconnected()
                 // A new charge session gets a fresh "enough, unplug" announcement.
                 warnedCharged = false
-                // "Charger removed, now X percent."
-                announcer.announce("charger_removed", "ఛార్జర్ తీసేశారు, ఇప్పుడు $pct శాతం ఉంది")
+                // "Charger removed, now X percent." Non-urgent — respects the toggle.
+                if (Settings.chargingAnnouncementsEnabled(context)) {
+                    announcer.announce("charger_removed", "ఛార్జర్ తీసేశారు, ఇప్పుడు $pct శాతం ఉంది")
+                }
                 if (Settings.travelModeEnabled(context)) {
                     LocationReplyService.startTravelPing(context, pluggedIn = false)
                     TheftGuard.onChargerEvent(context)   // silent front+back photo + toast
@@ -95,13 +102,19 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
         if (charging && (status == BatteryManager.BATTERY_STATUS_FULL || pct >= chargedAt)) {
             if (!warnedCharged) {
                 warnedCharged = true
+                // Non-urgent ("enough, unplug" is a convenience, not a safety alert) —
+                // respects the toggle. The visual card still shows either way.
                 if (pct >= 100 || status == BatteryManager.BATTERY_STATUS_FULL) {
                     // "Charging is full, please remove the charger."
-                    announcer.announce("battery_full", "ఛార్జింగ్ నిండింది, ఛార్జర్ తీసేయండి")
+                    if (Settings.chargingAnnouncementsEnabled(context)) {
+                        announcer.announce("battery_full", "ఛార్జింగ్ నిండింది, ఛార్జర్ తీసేయండి")
+                    }
                     AlertActivity.show(context, "బ్యాటరీ నిండింది", green = true)
                 } else {
                     // "Charge is X percent — enough. Remove the charger."
-                    announcer.announce("battery_full", "ఛార్జ్ $pct శాతం అయ్యింది, సరిపోతుంది. ఛార్జర్ తీసేయండి")
+                    if (Settings.chargingAnnouncementsEnabled(context)) {
+                        announcer.announce("battery_full", "ఛార్జ్ $pct శాతం అయ్యింది, సరిపోతుంది. ఛార్జర్ తీసేయండి")
+                    }
                     AlertActivity.show(context, "ఛార్జ్ $pct%\nసరిపోతుంది", green = true)
                 }
             }
@@ -120,14 +133,16 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
         // "Charge is X percent, please charge it." (percentage spoken so she knows)
         val lowAt = Settings.batteryLowPercent(context)
         val criticalAt = Settings.batteryCriticalPercent(context)
+        // Urgent low-battery alerts: always speak, at full volume, regardless of
+        // mute or the charging-announcements toggle — this is a safety line.
         if (pct <= criticalAt && !warnedCritical) {
             warnedCritical = true
-            announcer.announce("battery_low", "ఛార్జ్ $pct శాతం మాత్రమే ఉంది, వెంటనే ఛార్జ్ చేయండి")
+            announcer.announce("battery_low", "ఛార్జ్ $pct శాతం మాత్రమే ఉంది, వెంటనే ఛార్జ్ చేయండి", important = true)
             AlertActivity.show(context, "ఛార్జ్ $pct%\nఛార్జ్ చేయండి", green = false)
             CompanionService.startBatteryReminder(context)   // nag every N min until charged
         } else if (pct <= lowAt && !warnedLow) {
             warnedLow = true
-            announcer.announce("battery_low", "ఛార్జ్ $pct శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి")
+            announcer.announce("battery_low", "ఛార్జ్ $pct శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి", important = true)
             AlertActivity.show(context, "ఛార్జ్ $pct%\nఛార్జ్ చేయండి", green = false)
             CompanionService.startBatteryReminder(context)
         }

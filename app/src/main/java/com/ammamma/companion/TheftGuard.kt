@@ -11,9 +11,7 @@ import android.hardware.camera2.CameraManager
 import android.media.ImageReader
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.Looper
 import android.util.Log
-import android.widget.Toast
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.CountDownLatch
@@ -21,9 +19,11 @@ import java.util.concurrent.TimeUnit
 
 /**
  * The theft guard. When Travel mode is on and the charger is plugged in or out, this
- * SILENTLY grabs one front and one back photo and shows a small toast. The normal
- * spoken "charger connected, X%" line still happens (BatteryWatcher), so to a thief
- * the phone looks completely normal. The location SMS is sent by LocationReplyService.
+ * SILENTLY grabs one front and one back photo — no toast, no sound, nothing on screen.
+ * Silent means silent: a visible confirmation would tip off anyone who has the phone
+ * without her permission. The normal spoken "charger connected, X%" line still happens
+ * (BatteryWatcher), so to a thief the phone looks completely normal. The location SMS
+ * is sent by LocationReplyService. Every step here only logs, never shows UI.
  *
  * Camera2 can capture with NO preview by targeting only an ImageReader surface.
  * Everything is guarded + time-boxed so it can never hang the charger broadcast.
@@ -32,18 +32,18 @@ import java.util.concurrent.TimeUnit
 object TheftGuard {
 
     private const val TAG = "Ammamma"
-    private val main = Handler(Looper.getMainLooper())
+
+    // Cap how many theft photos pile up in filesDir — on a full 16GB phone with 2GB
+    // RAM, an unbounded folder is exactly the kind of slow leak that eventually fills
+    // storage and makes everything else on the phone (including this app) unreliable.
+    private const val MAX_KEPT_PHOTOS = 20
 
     /** Call from BatteryWatcher on a charger event. Returns immediately (works on a thread). */
     fun onChargerEvent(context: Context) {
         val app = context.applicationContext
         Thread {
             val photos = captureBothCameras(app)
-            main.post {
-                val msg = if (photos.isNotEmpty()) "📷 ఫోటో తీసారు · ✉️ సందేశం పంపారు"
-                          else "✉️ సందేశం పంపారు"
-                Toast.makeText(app, msg, Toast.LENGTH_LONG).show()
-            }
+            Log.i(TAG, "Theft capture done: ${photos.size} photo(s)")
         }.start()
     }
 
@@ -63,7 +63,19 @@ object TheftGuard {
             if (captureOne(context, mgr, id, out)) saved.add(out)
         }
         Log.i(TAG, "Theft capture saved ${saved.size} photo(s) in $dir")
+        trimOldPhotos(dir)
         return saved
+    }
+
+    /** Keep only the newest [MAX_KEPT_PHOTOS] files in the theft folder — delete the rest. */
+    private fun trimOldPhotos(dir: File) {
+        val files = dir.listFiles() ?: return
+        if (files.size <= MAX_KEPT_PHOTOS) return
+        files.sortedByDescending { it.lastModified() }
+            .drop(MAX_KEPT_PHOTOS)
+            .forEach { old ->
+                if (old.delete()) Log.i(TAG, "Theft photo trimmed: ${old.name}")
+            }
     }
 
     private fun cameraIdFor(mgr: CameraManager, facing: Int): String? = try {
