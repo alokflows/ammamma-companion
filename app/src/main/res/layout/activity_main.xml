@@ -8,6 +8,7 @@
     android:fillViewport="true">
 
     <LinearLayout
+        android:id="@+id/homeRoot"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -49,9 +50,23 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="12dp"
+            android:layout_marginBottom="2dp"
             android:textColor="#8A7361"
             android:textSize="15sp" />
+
+        <!-- today's weather, e.g. "31° ఎండ" — tap and it says the same out loud -->
+        <TextView
+            android:id="@+id/weather"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/weather_tile"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="6dp"
+            android:textColor="#8A7361"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
         <!-- face grid, filled in code -->
         <GridLayout

@@ -16,12 +16,15 @@ import android.os.PowerManager
 import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.GridLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -35,7 +38,12 @@ class MainActivity : Activity() {
     private val ui = Handler(Looper.getMainLooper())
     private lateinit var clock: TextView
     private lateinit var date: TextView
+    private lateinit var weather: TextView
     private var pendingNumber: String? = null
+
+    // What the grid was last built for (locked or unlocked) — so onResume can
+    // rebuild it only when the family flipped the edit lock in Settings.
+    private var lastBuiltLocked: Boolean? = null
 
     // Location-off warning: spoken at most ONCE per app-open (reset in onCreate),
     // but the banner stays visible for as long as location remains off.
@@ -68,7 +76,21 @@ class MainActivity : Activity() {
 
         clock = findViewById(R.id.clock)
         date = findViewById(R.id.date)
+        weather = findViewById(R.id.weather)
         buildFaceGrid()
+
+        // Weather tile speaks on tap — real info, out loud, because she can't read
+        // the number. Offline it honestly says the internet is down (never silence).
+        weather.setOnClickListener {
+            Announcer.get(this).say(HomeWeather.spokenLine())
+        }
+
+        // TAP-TO-SILENCE: if the phone is mid-sentence and she wants quiet, tapping
+        // the clock or any blank part of the home stops the voice. No menu, no icon
+        // to learn — the most natural gesture there is.
+        val hush = View.OnClickListener { Announcer.get(this).stopSpeaking() }
+        clock.setOnClickListener(hush)
+        findViewById<View>(R.id.homeRoot).setOnClickListener(hush)
 
         // Speak a hello when she opens the app — but only once per 30 minutes (not
         // on every resume/re-open) AND only if the family left the greeting on.
@@ -150,6 +172,18 @@ class MainActivity : Activity() {
         clockTick.run()  // start ticking
         checkLocation()  // grandpa-finder needs location ON; nag if it's off
         checkCallerIdentity()  // caller announcement needs phone/call-log/contacts perms
+        // The family may have just flipped the edit lock in Settings — the grid's
+        // add-tile visibility depends on it, so rebuild if the state changed.
+        if (lastBuiltLocked != Settings.editLocked(this)) buildFaceGrid()
+        refreshWeather()
+    }
+
+    /** Paint whatever weather we have instantly, then fetch a fresh reading. */
+    private fun refreshWeather() {
+        // Before the first reading arrives the tile shows just the word "వాతావరణం";
+        // tapping it then speaks the honest no-data line.
+        weather.text = HomeWeather.latest()?.let { HomeWeather.tileText(it) } ?: "వాతావరణం"
+        HomeWeather.refresh { weather.text = HomeWeather.tileText(it) }
     }
 
     override fun onPause() {
@@ -168,8 +202,8 @@ class MainActivity : Activity() {
      * screen (which appears while the caller's name is being spoken). Silencing
      * there chopped those announcements mid-word. onUserLeaveHint() fires only on a
      * deliberate leave (Home button) and — per the Android docs — deliberately does
-     * NOT fire when an incoming call covers the activity. Back is her closing the
-     * app, so that path silences too.
+     * NOT fire when an incoming call covers the activity. Back no longer leaves the
+     * app at all (see [onBackPressed]), so Home is the one deliberate exit.
      */
     override fun onUserLeaveHint() {
         if (!CompanionService.isFindAlarmActive) {
@@ -178,11 +212,14 @@ class MainActivity : Activity() {
         super.onUserLeaveHint()
     }
 
+    /**
+     * Back is CONSUMED on Home: this app IS the phone's front door for Ammamma, and
+     * a stray Back press must never dump her onto the bare Android launcher — a
+     * screen she can't read and can't get back from. So: no super call, nothing
+     * happens. (Tap-to-silence covers the "make it stop talking" need instead.)
+     */
     override fun onBackPressed() {
-        if (!CompanionService.isFindAlarmActive) {
-            Announcer.get(this).stopSpeaking()
-        }
-        super.onBackPressed()
+        // deliberately empty — Back does nothing on the home screen
     }
 
     private fun updateClock() {
@@ -198,6 +235,8 @@ class MainActivity : Activity() {
         grid.removeAllViews()   // rebuilt after every edit
         val inflater = LayoutInflater.from(this)
         val gap = dp(7)
+        val locked = Settings.editLocked(this)
+        lastBuiltLocked = locked
 
         Contacts.load(this).forEachIndexed { index, contact ->
             val card = inflater.inflate(R.layout.item_face, grid, false)
@@ -212,6 +251,19 @@ class MainActivity : Activity() {
                 setStroke(dp(4), contact.ringColor)
             }
             card.findViewById<FrameLayout>(R.id.avatarFrame).background = ring
+
+            // Family-set photo: fills the ring as a circle. No photo → the generic
+            // person icon stays, so the grid never looks broken while photos trickle in.
+            val photo = Faces.load(this, contact.id)
+            if (photo != null) {
+                card.findViewById<ImageView>(R.id.avatarImage).apply {
+                    layoutParams = FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                    ).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) }   // keep the ring visible
+                    setImageBitmap(Faces.circle(photo))
+                }
+            }
 
             val hasNumber = contact.number.isNotBlank()
             // A card with no number yet LOOKS different: dimmed, and no green call badge —
@@ -236,26 +288,39 @@ class MainActivity : Activity() {
                     Announcer.get(this).say("నంబర్ లేదు, ఇంట్లో వాళ్ళను అడగండి")
                 }
             }
-            // Long press = edit name/number (for family).
-            card.setOnLongClickListener { showEditDialog(index, contact); true }
+            // Long press = edit (for family). When the family LOCKED editing in
+            // Settings, an accidental long-press (she holds things) must not open an
+            // English form — instead the phone explains, out loud, how to unlock.
+            // Checked live at press time, so a Settings flip works without a rebuild.
+            card.setOnLongClickListener {
+                if (Settings.editLocked(this)) {
+                    Announcer.get(this).say("మార్చాలంటే సెట్టింగ్స్‌లో అన్‌లాక్ చేయండి")
+                } else {
+                    showEditDialog(index, contact)
+                }
+                true
+            }
 
             // two equal columns, each cell with a little margin
             grid.addView(card, cellParams(gap))
         }
 
-        // A "+" tile at the end to ADD a new person.
-        val addCard = inflater.inflate(R.layout.item_face, grid, false)
-        addCard.findViewById<TextView>(R.id.name).text = "＋"
-        addCard.findViewById<TextView>(R.id.rel).text = "కొత్త వ్యక్తి · Add"
-        addCard.findViewById<View>(R.id.callBadge).visibility = View.GONE
-        addCard.findViewById<View>(R.id.noNumber).visibility = View.GONE
-        addCard.findViewById<FrameLayout>(R.id.avatarFrame).background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(Color.parseColor("#F3E7D3"))
-            setStroke(dp(4), Color.parseColor("#B0857A"))
+        // A "+" tile at the end to ADD a new person — family-only, so it simply
+        // doesn't exist while editing is locked (a dead-looking tile would confuse her).
+        if (!locked) {
+            val addCard = inflater.inflate(R.layout.item_face, grid, false)
+            addCard.findViewById<TextView>(R.id.name).text = "＋"
+            addCard.findViewById<TextView>(R.id.rel).text = "కొత్త వ్యక్తి · Add"
+            addCard.findViewById<View>(R.id.callBadge).visibility = View.GONE
+            addCard.findViewById<View>(R.id.noNumber).visibility = View.GONE
+            addCard.findViewById<FrameLayout>(R.id.avatarFrame).background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#F3E7D3"))
+                setStroke(dp(4), Color.parseColor("#B0857A"))
+            }
+            addCard.setOnClickListener { showEditDialog(-1, null) }
+            grid.addView(addCard, cellParams(gap))
         }
-        addCard.setOnClickListener { showEditDialog(-1, null) }
-        grid.addView(addCard, cellParams(gap))
     }
 
     private fun cellParams(gap: Int) = GridLayout.LayoutParams().apply {
@@ -292,13 +357,60 @@ class MainActivity : Activity() {
                 buildFaceGrid()
             }
             .setNegativeButton("రద్దు", null)
-        if (index >= 0) {
-            builder.setNeutralButton("తీసివేయి") { _, _ ->   // delete
+        if (index >= 0 && contact != null) {
+            builder.setNeutralButton("తీసివేయి") { _, _ ->   // delete person + their files
+                removePersonFiles(contact.id)
                 Contacts.remove(this, index)
                 buildFaceGrid()
             }
         }
-        builder.show()
+        val dialog = builder.create()
+
+        // Photo controls (existing people only — a new person has no id yet).
+        if (index >= 0 && contact != null && contact.id.isNotEmpty()) {
+            box.addView(Button(this).apply {
+                text = "ఫోటో పెట్టండి"
+                setOnClickListener {
+                    // Remember WHOSE photo is being picked in prefs, not a field —
+                    // on 2 GB RAM the process can die while the gallery is open.
+                    flags.edit().putString(FLAG_PENDING_PHOTO_ID, contact.id).apply()
+                    val pick = Intent(Intent.ACTION_GET_CONTENT).apply {
+                        type = "image/*"
+                        addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+                    }
+                    val ok = runCatching { startActivityForResult(pick, REQ_PICK_PHOTO) }.isSuccess
+                    if (!ok) {
+                        flags.edit().remove(FLAG_PENDING_PHOTO_ID).apply()
+                        Toast.makeText(this@MainActivity, "గ్యాలరీ తెరవలేకపోయాను", Toast.LENGTH_SHORT).show()
+                    }
+                    dialog.dismiss()
+                }
+            })
+            if (Faces.fileFor(this, contact.id).exists()) {
+                box.addView(Button(this).apply {
+                    text = "ఫోటో తీసేయండి"
+                    setOnClickListener {
+                        Faces.delete(this@MainActivity, contact.id)
+                        buildFaceGrid()
+                        dialog.dismiss()
+                    }
+                })
+            }
+        }
+        dialog.show()
+    }
+
+    /**
+     * A removed person must leave NOTHING behind: their face photo and any family
+     * voice clip recorded for their calls ("caller_<id>.*") both go. Ids are never
+     * reused, so this can't touch anyone else's files.
+     */
+    private fun removePersonFiles(id: String) {
+        if (id.isEmpty()) return
+        Faces.delete(this, id)
+        File(filesDir, "clips").listFiles()?.forEach {
+            if (it.nameWithoutExtension == "caller_$id") runCatching { it.delete() }
+        }
     }
 
     /**
@@ -377,6 +489,24 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         // Battery-exemption dialog closed (either way) → next step of the chain.
         if (requestCode == REQ_BATTERY_OPT) askForOverlay()
+
+        // Family picked a face photo from the gallery.
+        if (requestCode == REQ_PICK_PHOTO) {
+            val id = flags.getString(FLAG_PENDING_PHOTO_ID, null)
+            flags.edit().remove(FLAG_PENDING_PHOTO_ID).apply()
+            val uri = data?.data
+            if (resultCode != RESULT_OK || id.isNullOrEmpty() || uri == null) return
+            // Decode + shrink OFF the UI thread — a 12 MP photo can take a moment
+            // on this phone, and the home screen must never freeze.
+            Thread {
+                val bmp = Faces.decodeScaled(this, uri)
+                if (bmp != null) Faces.save(this, id, bmp)
+                ui.post {
+                    if (bmp != null) buildFaceGrid()
+                    else Toast.makeText(this, "ఫోటో పెట్టలేకపోయాను", Toast.LENGTH_SHORT).show()
+                }
+            }.apply { isDaemon = true; name = "face-photo" }.start()
+        }
     }
 
     /**
@@ -495,6 +625,11 @@ class MainActivity : Activity() {
         private const val REQ_STARTUP = 103
         private const val REQ_BATTERY_OPT = 104
         private const val REQ_CALLER_PERMS = 105   // re-ask from the caller-identity banner
+        private const val REQ_PICK_PHOTO = 106     // family picking a face photo from the gallery
+
+        // Whose face photo is being picked right now — kept in prefs (not a field)
+        // so it survives the process being killed while the gallery is in front.
+        private const val FLAG_PENDING_PHOTO_ID = "pending_photo_id"
 
         // The three permissions the caller announcement depends on; the banner nags
         // (and can re-grant) if any is missing.

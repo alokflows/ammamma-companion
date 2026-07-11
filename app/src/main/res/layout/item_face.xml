@@ -19,7 +19,9 @@
         android:layout_width="84dp"
         android:layout_height="84dp">
 
+        <!-- person icon by default; swapped in code for the family-set photo when one exists -->
         <ImageView
+            android:id="@+id/avatarImage"
             android:layout_width="52dp"
             android:layout_height="52dp"
             android:layout_gravity="center"
@@ -32,9 +34,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_gravity="top|end"
-            android:background="@drawable/calldot"
-            android:padding="5dp"
-            android:src="@drawable/ic_call"
+            android:src="@drawable/ic_call_badge"
             android:contentDescription="@null" />
     </FrameLayout>
 
