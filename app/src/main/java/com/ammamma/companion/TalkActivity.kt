@@ -56,6 +56,18 @@ class TalkActivity : Activity(), RecognitionListener {
     // Turned off after two silent/no-match turns in a row; a mic tap turns it back on.
     private var loopActive = false
     private var noMatchStreak = 0
+    // Greet ONCE per screen entry (and per new chat) — NOT on every onResume.
+    // Coming back from the chat list, from a call the assistant placed, or from
+    // YouTube must not replay "చెప్పమ్మా…" again and again.
+    private var greeted = false
+    // Was the hands-free loop running when we paused? Then coming back resumes
+    // listening silently instead of re-greeting.
+    private var resumeLoopOnReturn = false
+    // Set just before startActivity() for a call/app/video. The covering screen's
+    // onPause/onStop must NOT cut "…కి ఫోన్ చేస్తున్నాను" off mid-word — hearing the
+    // name is her ONLY confirmation the right call is being placed. The Announcer is
+    // app-scoped, so the line finishes playing over the dialer. That is desired.
+    private var launchingAction = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,21 +111,36 @@ class TalkActivity : Activity(), RecognitionListener {
     override fun onResume() {
         super.onResume()
         resumed = true
+        launchingAction = false
         noMatchStreak = 0
-        greetThenAutoListen()
+        if (!greeted) {
+            // Fresh entry to the screen: greet once, then the loop starts itself.
+            greeted = true
+            greetThenAutoListen()
+        } else if (resumeLoopOnReturn) {
+            // Back from the chat list / a placed call / YouTube with the loop
+            // previously running: resume listening SILENTLY — no re-greeting.
+            resumeLoopOnReturn = false
+            waitUntilIdleThen { attemptAutoListen() }
+        }
     }
 
     override fun onPause() {
         resumed = false
+        resumeLoopOnReturn = loopActive
         loopActive = false
         recognizer?.cancel()
-        Announcer.get(this).stopSpeaking()
+        // Leaving the screen silences everything instantly — EXCEPT when it's our
+        // own action's screen (dialer/YouTube) covering us: that confirmation line
+        // must finish playing (see launchingAction).
+        if (!launchingAction) Announcer.get(this).stopSpeaking()
         super.onPause()
     }
 
     override fun onStop() {
         recognizer?.cancel()
-        Announcer.get(this).stopSpeaking()
+        if (!launchingAction) Announcer.get(this).stopSpeaking()
+        launchingAction = false
         super.onStop()
     }
 
@@ -134,6 +161,7 @@ class TalkActivity : Activity(), RecognitionListener {
         chatTitle.text = displayTitle()
         status.text = "నొక్కి మాట్లాడండి లేదా టైప్ చేయండి"
         noMatchStreak = 0
+        greeted = true   // a new chat greets right here — onResume must not repeat it
         if (resumed) greetThenAutoListen()
     }
 
@@ -151,7 +179,8 @@ class TalkActivity : Activity(), RecognitionListener {
             transcript.adapter = adapter
             chatTitle.text = displayTitle()
             scrollToBottom()
-            // onResume() fires right after this and re-greets/re-listens naturally.
+            // onResume() fires right after this; it resumes listening silently if
+            // the loop was running — it does NOT greet again.
         }
     }
 
@@ -289,18 +318,27 @@ class TalkActivity : Activity(), RecognitionListener {
         voice.say(spoken)
         when (action) {
             is CommandRouter.Action.Call -> {
+                // The dialer covering us fires onPause — launchingAction keeps it
+                // from chopping "…కి ఫోన్ చేస్తున్నాను" mid-word (her only
+                // confirmation the RIGHT call is being placed).
+                launchingAction = true
                 try {
                     startActivity(
                         Intent(Intent.ACTION_CALL, Uri.parse("tel:${action.number}"))
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     )
                 } catch (e: SecurityException) {
+                    launchingAction = false   // nothing is covering us after all
                     voice.say("ఫోన్ చేయడానికి అనుమతి లేదు")
                 }
             }
             is CommandRouter.Action.Launch -> {
+                launchingAction = true
                 try { startActivity(action.intent) }
-                catch (e: Exception) { voice.say("అది తెరవడం కుదరలేదు") }
+                catch (e: Exception) {
+                    launchingAction = false
+                    voice.say("అది తెరవడం కుదరలేదు")
+                }
             }
             is CommandRouter.Action.Say -> {}
         }

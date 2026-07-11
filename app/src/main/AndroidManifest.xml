@@ -87,7 +87,8 @@
         <!-- The Talk companion's chat-session list (title + relative date, open/delete). -->
         <activity
             android:name=".ChatListActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
         <activity
             android:name=".SettingsActivity"
