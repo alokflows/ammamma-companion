@@ -258,6 +258,98 @@
             android:textColor="#402A1C"
             android:textSize="15sp" />
 
+        <!-- ============ VOICE (v1.1): which TTS voice speaks, rate + pitch ============ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="గొంతు · Voice"
+            android:textColor="#5A3720"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Pick which installed Telugu voice speaks, and how fast/high it sounds. ▶ previews a voice without changing anything; picking one (or moving a slider) saves it and speaks a quick sample."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <!-- One row per voice, built in code: "Automatic" first, then every
+             Telugu voice the engine offers (or a "none found" line). -->
+        <LinearLayout
+            android:id="@+id/voicesContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="vertical" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="మాట్లాడే వేగం · Speech rate"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <SeekBar
+            android:id="@+id/rateSeek"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:min="50"
+            android:max="150" />
+
+        <TextView
+            android:id="@+id/rateLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="గొంతు స్థాయి (పిచ్) · Pitch"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <SeekBar
+            android:id="@+id/pitchSeek"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:min="50"
+            android:max="150" />
+
+        <TextView
+            android:id="@+id/pitchLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
+        <Button
+            android:id="@+id/ttsSystemSettings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:paddingVertical="14dp"
+            android:text="మరిన్ని గొంతులు (TTS సెట్టింగ్‌లు) · More voices (TTS settings)"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Opens the phone's own text-to-speech settings, to install or upgrade Google's Telugu voice data."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
         <!-- ============ HOME LOCK (applies immediately) ============ -->
         <Switch
             android:id="@+id/editLockSwitch"

@@ -16,6 +16,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.RadioButton
 import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
@@ -44,6 +45,13 @@ class SettingsActivity : Activity() {
     private lateinit var callerSeconds: EditText
     private lateinit var callerTimes: EditText
     private lateinit var travelNumbersContainer: LinearLayout
+
+    // Voice (v1.1): dynamic radio rows, built in code like the AI-key/number
+    // rows — one per real Telugu voice, plus "Automatic" first. Kept manually
+    // exclusive (see wireVoiceSection) since a ▶ audition button sits beside
+    // each radio in the same row.
+    private lateinit var voicesContainer: LinearLayout
+    private val voiceRadios = mutableListOf<RadioButton>()
 
     // Day clock time fields + grandpa-finder number (all persisted in save()).
     private lateinit var quietStart: EditText
@@ -136,6 +144,7 @@ class SettingsActivity : Activity() {
         findViewById<Button>(R.id.addNumber).setOnClickListener { addNumberRow("") }
 
         wireSoundsSection()
+        wireVoiceSection()
         wireDayClockSection()
         wireFinderSection()
 
@@ -216,6 +225,141 @@ class SettingsActivity : Activity() {
                 Settings.setAlertRepeatSeconds(this@SettingsActivity, seekBar?.progress ?: startSecs)
             }
         })
+    }
+
+    /**
+     * Voice section: "Automatic" + one row per real Telugu voice the engine
+     * offers (Announcer.availableTeluguVoices — empty on the emulator, which
+     * has no Telugu TTS data). Rate/pitch sliders match the volume/alert-repeat
+     * pattern above. Every change saves immediately, applies live, and speaks
+     * a short confirmation — same "no Save button needed" feel as the switches.
+     */
+    private fun wireVoiceSection() {
+        voicesContainer = findViewById(R.id.voicesContainer)
+        val savedVoiceName = Settings.ttsVoiceName(this)
+        val voices = Announcer.get(this).availableTeluguVoices()
+
+        addVoiceRow(
+            "స్వయంచాలకం (ఉత్తమ తెలుగు గొంతు) · Automatic (best Telugu voice)",
+            voice = null,
+            checked = savedVoiceName.isEmpty()
+        )
+
+        if (voices.isEmpty()) {
+            // Emulator / an engine with no Telugu voice data installed: nothing
+            // to list, but "More voices" below still lets the family fetch some.
+            voicesContainer.addView(TextView(this).apply {
+                text = "ఈ ఫోన్‌లో తెలుగు గొంతులు కనబడలేదు · No Telugu voices found on this device"
+                setTextColor(Color.parseColor("#8A7361"))
+                textSize = 13f
+                setPadding(0, dp(6), 0, dp(6))
+            })
+        } else {
+            voices.forEachIndexed { index, voice ->
+                val quality = when {
+                    voice.quality >= android.speech.tts.Voice.QUALITY_VERY_HIGH -> "very high quality"
+                    voice.quality >= android.speech.tts.Voice.QUALITY_HIGH -> "high quality"
+                    voice.quality >= android.speech.tts.Voice.QUALITY_NORMAL -> "normal quality"
+                    else -> "low quality"
+                }
+                val network = if (voice.isNetworkConnectionRequired) " (needs internet)" else ""
+                addVoiceRow(
+                    "Voice ${index + 1} — $quality$network",
+                    voice = voice,
+                    checked = savedVoiceName == voice.name
+                )
+            }
+        }
+
+        val rateSeek = findViewById<SeekBar>(R.id.rateSeek)
+        val rateLabel = findViewById<TextView>(R.id.rateLabel)
+        val startRate = Settings.ttsRatePercent(this)
+        rateSeek.progress = startRate
+        rateLabel.text = "$startRate%"
+        rateSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, value: Int, fromUser: Boolean) {
+                rateLabel.text = "$value%"
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                Settings.setTtsRatePercent(this@SettingsActivity, seekBar?.progress ?: startRate)
+                confirmVoiceChange()
+            }
+        })
+
+        val pitchSeek = findViewById<SeekBar>(R.id.pitchSeek)
+        val pitchLabel = findViewById<TextView>(R.id.pitchLabel)
+        val startPitch = Settings.ttsPitchPercent(this)
+        pitchSeek.progress = startPitch
+        pitchLabel.text = "$startPitch%"
+        pitchSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, value: Int, fromUser: Boolean) {
+                pitchLabel.text = "$value%"
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                Settings.setTtsPitchPercent(this@SettingsActivity, seekBar?.progress ?: startPitch)
+                confirmVoiceChange()
+            }
+        })
+
+        // Lets the family install/upgrade Google's Telugu TTS data — guarded
+        // since not every device/ROM ships this settings screen.
+        findViewById<Button>(R.id.ttsSystemSettings).setOnClickListener {
+            val intent = Intent("com.android.settings.TTS_SETTINGS")
+            if (intent.resolveActivity(packageManager) != null) {
+                startActivity(intent)
+            } else {
+                Toast.makeText(this, "TTS సెట్టింగ్‌లు దొరకలేదు · TTS settings not found", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /** One voice row: a RadioButton + a ▶ button that PREVIEWS the voice
+     *  without saving anything (Announcer.audition). [voice] null = the
+     *  "Automatic" row. Exclusivity is kept by hand (not a RadioGroup) so the
+     *  ▶ button can share the row with the radio — see the checked listener. */
+    private fun addVoiceRow(label: String, voice: android.speech.tts.Voice?, checked: Boolean) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val radio = RadioButton(this).apply {
+            text = label
+            textSize = 15f
+            setTextColor(Color.parseColor("#402A1C"))
+            isChecked = checked
+        }
+        // Listener added AFTER isChecked above, so building the initial rows
+        // never saves a pref or speaks a confirmation — only a real user tap does.
+        radio.setOnCheckedChangeListener { _, isChecked ->
+            if (!isChecked) return@setOnCheckedChangeListener
+            voiceRadios.filter { it !== radio }.forEach { it.isChecked = false }
+            Settings.setTtsVoiceName(this, voice?.name.orEmpty())
+            confirmVoiceChange()
+        }
+        val audition = Button(this).apply {
+            text = "▶"
+            textSize = 14f
+            setOnClickListener {
+                Announcer.get(this@SettingsActivity).audition(
+                    voice,
+                    Settings.ttsRatePercent(this@SettingsActivity),
+                    Settings.ttsPitchPercent(this@SettingsActivity)
+                )
+            }
+        }
+        row.addView(radio, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        row.addView(audition, LinearLayout.LayoutParams(dp(48), dp(48)))
+        voicesContainer.addView(row)
+        voiceRadios.add(radio)
+    }
+
+    /** After a voice/rate/pitch change: apply it live, then speak a short
+     *  Telugu confirmation IN THE NEW VOICE, so the family hears it land. */
+    private fun confirmVoiceChange() {
+        Announcer.get(this).applyVoiceSettings(this)
+        Announcer.get(this).say("ఇలా ఉంటుంది కొత్త గొంతు")
     }
 
     /** Day clock: switches apply immediately (like the sounds switches); the
