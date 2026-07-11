@@ -599,3 +599,23 @@ merge LUX + CLIP when they land, bundle neural clips (tools/make_clips, edge-tts
 PROVEN: 47KB mp3/2 sentences, venv in session scratchpad), lean self-run smoke (NO gauntlet agent —
 usage at 20%), release v1.1 (versionCode 11). If session dies: branches worktree-agent-a43392435e5899eca
 (LUX) + worktree-agent-a279c50e9ced7419e (CLIP) may hold uncommitted/committed work — check before redoing.
+
+### §17 FINAL STATE (usage died at 1% — 2026-07-11 night). CONTINUE FROM HERE:
+**DONE:** v1.0 RELEASED (tag v1.0). Merged to master: WP-SIRI (offline verbs), WP-CAM (photo→WhatsApp),
+WP-VOICE (voice picker), WP-CLIP (file/Drive import + ClipCatalog), Announcer bundled-clip fallback,
+WP-LUX (luxury GUI — see merge result line above; if aborted, merge branch worktree-agent-a43392435e5899eca,
+0.00% jank verified, screenshots in session scratchpad). LUX fixed real bug: snooze btn contrast (btn_outline_lux).
+**NOT DONE — v1.1 release checklist (in order):**
+1. If LUX merge aborted: redo it (conflicts would be trivial—LUX owns Main/Alert/Charging/FindPhone+ui/).
+2. Generate bundled clips → app/src/main/assets/clips/<key>.mp3 for keys: home_greeting, talk_greeting,
+   goodmorning, charger_connected, charger_removed, battery_full, battery_low, found_phone, alarm, hour_0..23.
+   Text = each ClipSpec hint in ClipCatalog.kt (hours: "ఇప్పుడు <period> <N> గంటలు", use Telugu number words).
+   Tool PROVEN: `TTSENV/bin/edge-tts --voice te-IN-ShrutiNeural --rate=-8% --text "<hint>" --write-media <key>.mp3`
+   (venv was in session scratchpad; recreate: python3 -m venv env && env/bin/pip install edge-tts). Skip caller_* keys.
+3. ./gradlew assembleDebug; emulator smoke: cold-start greeting speaks (VOICE moved initDone in onInit — watch
+   pendingText regression), one offline verb ("టైం ఎంత" in Talk with no key), chime demo plays SHRUTI mp3 not TTS,
+   Recorder file-import one mp3, LUX screens eyeball.
+4. versionCode 11 / "1.1" → assembleRelease → gh release create v1.1 (co-edited repo: gh release list FIRST).
+5. Real-device: Alok installs v1.1 per SETUP_PHONE.md, runs Recorder Studio with family (his last step).
+**QUEUED v1.2:** wake word (§16-F, Porcupine), WhatsApp video-call tiles, Device-Owner powers (§16-addendum),
+medicine reminders + SOS (§16-E). Everything else in §16.
