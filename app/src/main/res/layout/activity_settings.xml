@@ -182,6 +182,37 @@
             android:textColor="#402A1C"
             android:textSize="15sp" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="అలర్ట్ మళ్ళీ చెప్పే సమయం · Alert repeat (seconds)"
+            android:textColor="#5A3720"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="A battery alert keeps repeating its line for this long, in case she is in another room. 0 = say it once only."
+            android:textColor="#8A7361"
+            android:textSize="13sp" />
+
+        <SeekBar
+            android:id="@+id/alertRepeatSeek"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:max="120" />
+
+        <TextView
+            android:id="@+id/alertRepeatLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:textColor="#402A1C"
+            android:textSize="15sp" />
+
         <!-- ============ PERMISSIONS (rows built in code) ============ -->
         <TextView
             android:layout_width="match_parent"

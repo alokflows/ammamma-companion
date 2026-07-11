@@ -169,6 +169,23 @@ class SettingsActivity : Activity() {
                 Settings.setSpeechVolumePercent(this@SettingsActivity, seekBar?.progress ?: startPct)
             }
         })
+
+        // Alert repeat window (seconds, 0 = say once). Same pattern as the volume bar.
+        val repeatSeek = findViewById<SeekBar>(R.id.alertRepeatSeek)
+        val repeatLabel = findViewById<TextView>(R.id.alertRepeatLabel)
+        fun repeatText(v: Int) = if (v == 0) "0 — once only" else "$v s"
+        val startSecs = Settings.alertRepeatSeconds(this)
+        repeatSeek.progress = startSecs
+        repeatLabel.text = repeatText(startSecs)
+        repeatSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, value: Int, fromUser: Boolean) {
+                repeatLabel.text = repeatText(value)
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                Settings.setAlertRepeatSeconds(this@SettingsActivity, seekBar?.progress ?: startSecs)
+            }
+        })
     }
 
     // --- AI: one row per key. Each row has a "Get models ▾" that lets the family
@@ -319,13 +336,18 @@ class SettingsActivity : Activity() {
         findViewById<Button>(R.id.lowBatteryDemo).setOnClickListener {
             // Demo speaks the CURRENTLY CONFIGURED threshold, so tuning is audible.
             // (No repeating reminder here — it would read the real battery and stop.)
+            // repeatText + important mirror the REAL low-battery path, so the family
+            // hears the alert-repeat window exactly as she would.
             val n = Settings.batteryLowPercent(this)
-            Announcer.get(this).announce("battery_low", "ఛార్జ్ $n శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి")
-            AlertActivity.show(this, "ఛార్జ్ $n%\nఛార్జ్ చేయండి", green = false)
+            val line = "ఛార్జ్ $n శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి"
+            Announcer.get(this).announce("battery_low", line, important = true)
+            AlertActivity.show(this, "ఛార్జ్ $n%\nఛార్జ్ చేయండి", green = false,
+                repeatText = line, important = true)
         }
         findViewById<Button>(R.id.fullBatteryDemo).setOnClickListener {
-            Announcer.get(this).announce("battery_full", "ఛార్జింగ్ నిండింది, ఛార్జర్ తీసేయండి")
-            AlertActivity.show(this, "బ్యాటరీ నిండింది", green = true)
+            val line = "ఛార్జింగ్ నిండింది, ఛార్జర్ తీసేయండి"
+            Announcer.get(this).announce("battery_full", line)
+            AlertActivity.show(this, "బ్యాటరీ నిండింది", green = true, repeatText = line)
         }
         findViewById<Button>(R.id.chargingDemo).setOnClickListener {
             // The charging screen reads the sticky battery broadcast, so it shows

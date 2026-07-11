@@ -103,19 +103,21 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
             if (!warnedCharged) {
                 warnedCharged = true
                 // Non-urgent ("enough, unplug" is a convenience, not a safety alert) —
-                // respects the toggle. The visual card still shows either way.
+                // respects the toggle. The visual card still shows either way, but a
+                // silenced category must not repeat either: repeatText goes null.
+                val speakIt = Settings.chargingAnnouncementsEnabled(context)
                 if (pct >= 100 || status == BatteryManager.BATTERY_STATUS_FULL) {
                     // "Charging is full, please remove the charger."
-                    if (Settings.chargingAnnouncementsEnabled(context)) {
-                        announcer.announce("battery_full", "ఛార్జింగ్ నిండింది, ఛార్జర్ తీసేయండి")
-                    }
-                    AlertActivity.show(context, "బ్యాటరీ నిండింది", green = true)
+                    val line = "ఛార్జింగ్ నిండింది, ఛార్జర్ తీసేయండి"
+                    if (speakIt) announcer.announce("battery_full", line)
+                    AlertActivity.show(context, "బ్యాటరీ నిండింది", green = true,
+                        repeatText = if (speakIt) line else null)
                 } else {
                     // "Charge is X percent — enough. Remove the charger."
-                    if (Settings.chargingAnnouncementsEnabled(context)) {
-                        announcer.announce("battery_full", "ఛార్జ్ $pct శాతం అయ్యింది, సరిపోతుంది. ఛార్జర్ తీసేయండి")
-                    }
-                    AlertActivity.show(context, "ఛార్జ్ $pct%\nసరిపోతుంది", green = true)
+                    val line = "ఛార్జ్ $pct శాతం అయ్యింది, సరిపోతుంది. ఛార్జర్ తీసేయండి"
+                    if (speakIt) announcer.announce("battery_full", line)
+                    AlertActivity.show(context, "ఛార్జ్ $pct%\nసరిపోతుంది", green = true,
+                        repeatText = if (speakIt) line else null)
                 }
             }
             return
@@ -137,13 +139,17 @@ class BatteryWatcher(private val announcer: Announcer) : BroadcastReceiver() {
         // mute or the charging-announcements toggle — this is a safety line.
         if (pct <= criticalAt && !warnedCritical) {
             warnedCritical = true
-            announcer.announce("battery_low", "ఛార్జ్ $pct శాతం మాత్రమే ఉంది, వెంటనే ఛార్జ్ చేయండి", important = true)
-            AlertActivity.show(context, "ఛార్జ్ $pct%\nఛార్జ్ చేయండి", green = false)
+            val line = "ఛార్జ్ $pct శాతం మాత్రమే ఉంది, వెంటనే ఛార్జ్ చేయండి"
+            announcer.announce("battery_low", line, important = true)
+            AlertActivity.show(context, "ఛార్జ్ $pct%\nఛార్జ్ చేయండి", green = false,
+                repeatText = line, important = true)
             CompanionService.startBatteryReminder(context)   // nag every N min until charged
         } else if (pct <= lowAt && !warnedLow) {
             warnedLow = true
-            announcer.announce("battery_low", "ఛార్జ్ $pct శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి", important = true)
-            AlertActivity.show(context, "ఛార్జ్ $pct%\nఛార్జ్ చేయండి", green = false)
+            val line = "ఛార్జ్ $pct శాతం ఉంది, దయచేసి ఛార్జ్ చేయండి"
+            announcer.announce("battery_low", line, important = true)
+            AlertActivity.show(context, "ఛార్జ్ $pct%\nఛార్జ్ చేయండి", green = false,
+                repeatText = line, important = true)
             CompanionService.startBatteryReminder(context)
         }
 

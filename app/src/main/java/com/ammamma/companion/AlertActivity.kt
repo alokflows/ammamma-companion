@@ -1,10 +1,15 @@
 package com.ammamma.companion
 
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.Button
@@ -26,6 +31,23 @@ import android.widget.TextView
  */
 class AlertActivity : Activity() {
 
+    // REPEAT ENGINE: the alert re-speaks its line for a family-set window
+    // (Settings.alertRepeatSeconds) after appearing — she may be in another room
+    // when the first line plays. The first utterance itself is spoken by the
+    // caller (BatteryWatcher, speech-first); this loop only handles the repeats.
+    private val ui = Handler(Looper.getMainLooper())
+    private var repeatLoop: Runnable? = null
+
+    // Charger state changing IS her answer to a battery alert: plugging in answers
+    // "please charge", unplugging answers "remove the charger". Either way, stop
+    // repeating immediately — nagging past the fix would be maddening.
+    private var receiverRegistered = false
+    private val chargerReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            cancelRepeats()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -36,6 +58,11 @@ class AlertActivity : Activity() {
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         )
+        registerReceiver(chargerReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_POWER_CONNECTED)
+            addAction(Intent.ACTION_POWER_DISCONNECTED)
+        })
+        receiverRegistered = true
         render(intent)
     }
 
@@ -45,6 +72,71 @@ class AlertActivity : Activity() {
         super.onNewIntent(newIntent)
         setIntent(newIntent)
         render(newIntent)
+    }
+
+    // The repeat loop must NEVER outlive the screen (a voice that won't stop was
+    // this app's worst historical bug). Cancel on ANY pause/finish; onDestroy also
+    // covers paths where onPause was skipped and drops the receiver.
+    override fun onPause() {
+        cancelRepeats()
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        cancelRepeats()
+        if (receiverRegistered) {
+            receiverRegistered = false
+            runCatching { unregisterReceiver(chargerReceiver) }
+        }
+        super.onDestroy()
+    }
+
+    /**
+     * Start (or restart, on a replacing alert) the repeat window. Polls every
+     * ~500ms and only re-speaks when the voice is idle AND has been quiet for
+     * ~2.5s — a line is never chopped by its own repeat. Each repeat carries the
+     * same [EXTRA_IMPORTANT] flag as the first utterance, so a low-battery repeat
+     * always sounds while a "charged enough" repeat still respects the mute.
+     */
+    private fun startRepeats(intent: Intent) {
+        cancelRepeats()
+        val text = intent.getStringExtra(EXTRA_REPEAT_TEXT) ?: return
+        if (text.isBlank()) return
+        val windowSecs = Settings.alertRepeatSeconds(this)
+        if (windowSecs <= 0) return   // 0 = speak once only (the caller already did)
+        val important = intent.getBooleanExtra(EXTRA_IMPORTANT, false)
+        val announcer = Announcer.get(this)
+        val deadline = SystemClock.elapsedRealtime() + windowSecs * 1000L
+
+        val loop = object : Runnable {
+            // When the voice last went idle; 0 = it is (or was just) speaking.
+            var quietSince = 0L
+            override fun run() {
+                val now = SystemClock.elapsedRealtime()
+                if (now >= deadline) {
+                    repeatLoop = null   // window over — loop dies on its own
+                    return
+                }
+                if (announcer.isSpeaking()) {
+                    quietSince = 0L
+                } else if (quietSince == 0L) {
+                    quietSince = now
+                } else if (now - quietSince >= QUIET_GAP_MS) {
+                    announcer.say(text, important)
+                    quietSince = 0L
+                }
+                ui.postDelayed(this, POLL_MS)
+            }
+        }
+        repeatLoop = loop
+        // First poll after one interval: the caller's own first utterance is
+        // usually still starting up (TTS queue), and polling finds that out.
+        ui.postDelayed(loop, POLL_MS)
+    }
+
+    private fun cancelRepeats() {
+        repeatLoop?.let { ui.removeCallbacks(it) }
+        repeatLoop = null
     }
 
     private fun render(intent: Intent) {
@@ -76,7 +168,8 @@ class AlertActivity : Activity() {
             isAllCaps = false
             setOnClickListener {
                 // Silence any line still playing the instant she taps — don't let it
-                // finish on its own.
+                // finish on its own — and kill the repeat loop with it.
+                cancelRepeats()
                 Announcer.get(this@AlertActivity).stopSpeaking()
                 finish()
             }
@@ -93,6 +186,7 @@ class AlertActivity : Activity() {
                 setBackgroundResource(R.drawable.btn_outline)
                 isAllCaps = false
                 setOnClickListener {
+                    cancelRepeats()
                     Announcer.get(this@AlertActivity).stopSpeaking()
                     CompanionService.stopBatteryReminder(this@AlertActivity)
                     finish()
@@ -104,6 +198,7 @@ class AlertActivity : Activity() {
         }
 
         setContentView(root)
+        startRepeats(intent)
     }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
@@ -111,13 +206,33 @@ class AlertActivity : Activity() {
     companion object {
         private const val EXTRA_MESSAGE = "message"
         private const val EXTRA_GREEN = "green"
+        private const val EXTRA_REPEAT_TEXT = "repeat_text"
+        private const val EXTRA_IMPORTANT = "important"
 
-        /** Launch the card from anywhere (service, receiver). */
-        fun show(context: Context, message: String, green: Boolean) {
+        private const val POLL_MS = 500L         // how often the loop checks the voice
+        private const val QUIET_GAP_MS = 2_500L  // silence required between repeats
+
+        /**
+         * Launch the card from anywhere (service, receiver). [repeatText] is the
+         * spoken line to KEEP repeating for Settings.alertRepeatSeconds — pass null
+         * for a silent card (e.g. when the family turned that category's voice off).
+         * The caller speaks the FIRST utterance itself before/while calling this
+         * (speech-first: the essential line must never wait for a window to appear);
+         * [important] must match that first utterance so repeats behave identically.
+         */
+        fun show(
+            context: Context,
+            message: String,
+            green: Boolean,
+            repeatText: String? = null,
+            important: Boolean = false
+        ) {
             val i = Intent(context, AlertActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 putExtra(EXTRA_MESSAGE, message)
                 putExtra(EXTRA_GREEN, green)
+                putExtra(EXTRA_REPEAT_TEXT, repeatText)
+                putExtra(EXTRA_IMPORTANT, important)
             }
             context.startActivity(i)
         }

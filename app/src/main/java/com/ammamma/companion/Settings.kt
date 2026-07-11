@@ -296,4 +296,19 @@ object Settings {
     fun setTravelEmailEnabled(c: Context, on: Boolean) {
         prefs(c).edit().putBoolean(KEY_TRAVEL_EMAIL, on).apply()
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ALERT REPEAT window. An alert card (AlertActivity) keeps re-speaking its
+    // line for this many seconds after it appears — she may be in another room
+    // when the first line plays. 0 = speak once only, no repeats.
+    // ─────────────────────────────────────────────────────────────────────────
+    private const val KEY_ALERT_REPEAT = "alert_repeat_seconds"
+
+    /** Seconds an alert keeps repeating its spoken line (0..120, default 30). */
+    fun alertRepeatSeconds(c: Context): Int =
+        prefs(c).getInt(KEY_ALERT_REPEAT, 30).coerceIn(0, 120)
+
+    fun setAlertRepeatSeconds(c: Context, secs: Int) {
+        prefs(c).edit().putInt(KEY_ALERT_REPEAT, secs.coerceIn(0, 120)).apply()
+    }
 }
