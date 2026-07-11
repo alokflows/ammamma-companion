@@ -248,8 +248,37 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
             silenceCurrent()
             raiseVolume(important)
             playClip(clip)
-        } else {
+        } else if (!playBundledClip(eventKey, important)) {
             speak(fallbackText, important)
+        }
+    }
+
+    /**
+     * Studio-voice defaults: fixed lines pre-synthesized with a neural Telugu voice
+     * and bundled in the APK (assets/clips/<key>.mp3) — so the phone speaks
+     * beautifully offline out of the box. A family recording (findClip) always
+     * wins over these; TTS remains the fallback for keys with no bundled clip.
+     */
+    private fun playBundledClip(eventKey: String, important: Boolean): Boolean {
+        val afd = try { context.assets.openFd("clips/$eventKey.mp3") } catch (e: Exception) { return false }
+        return try {
+            silenceCurrent()
+            raiseVolume(important)
+            player = MediaPlayer().apply {
+                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                setOnCompletionListener { restoreVolumeIfIdle() }
+                prepare()
+                start()
+            }
+            Log.i(TAG, "Playing bundled clip $eventKey")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Bundled clip failed for $eventKey", e)
+            restoreVolumeIfIdle()
+            false
+        } finally {
+            // MediaPlayer duplicates the descriptor in setDataSource — safe to close now.
+            runCatching { afd.close() }
         }
     }
 
