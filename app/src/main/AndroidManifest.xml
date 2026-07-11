@@ -99,6 +99,20 @@
             android:screenOrientation="portrait"
             android:exported="false" />
 
+        <!-- Recorder Studio: the family records real-voice clips for every spoken
+             line (greetings, chimes, callers). Reached from Settings only. -->
+        <activity
+            android:name=".RecorderActivity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
+
+        <!-- Grandpa-phone mode: the whole app becomes one giant "find her phone"
+             button that texts the code word to Ammamma's number. -->
+        <activity
+            android:name=".FinderActivity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
+
         <activity
             android:name=".FindPhoneActivity"
             android:screenOrientation="portrait"
@@ -127,6 +141,13 @@
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
+
+        <!-- Day clock: hourly chime, morning heartbeat and the talking alarm all
+             fire AlarmManager broadcasts into this receiver (kept separate from
+             CompanionService so the clock can't destabilise the watchdog). -->
+        <receiver
+            android:name=".DayReceiver"
+            android:exported="false" />
 
         <!-- Brings the companion back after a reboot or an app update. -->
         <receiver

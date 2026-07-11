@@ -8,12 +8,15 @@ import org.json.JSONObject
 /**
  * One person Ammamma can call. [name] is the Telugu word she recognizes, [english]
  * a small helper label, [number] is dialed on tap, [ringColor] her per-person color.
+ * [id] is a STABLE key that survives edits, deletes and reordering — recorded caller
+ * clips (clips/caller_<id>) and face photos (faces/<id>.jpg) are named by it.
  */
 data class Contact(
     val name: String,
     val english: String,
     val number: String,
-    val ringColor: Int
+    val ringColor: Int,
+    val id: String = ""
 )
 
 /**
@@ -45,8 +48,8 @@ object Contacts {
         c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun load(c: Context): List<Contact> {
-        val raw = prefs(c).getString(KEY, null) ?: return DEFAULTS.also { save(c, it) }
-        return try {
+        val raw = prefs(c).getString(KEY, null)
+        val list: List<Contact> = if (raw == null) DEFAULTS else try {
             val arr = JSONArray(raw)
             (0 until arr.length()).map { i ->
                 val o = arr.getJSONObject(i)
@@ -54,12 +57,28 @@ object Contacts {
                     o.getString("name"),
                     o.getString("english"),
                     o.getString("number"),
-                    o.getInt("ringColor")
+                    o.getInt("ringColor"),
+                    o.optString("id")
                 )
             }
         } catch (e: Exception) {
             DEFAULTS
         }
+        // Older saves (and the DEFAULTS seed) have no id — assign one per person and
+        // persist immediately, so clip/photo file names stay valid forever after.
+        if (list.any { it.id.isEmpty() }) {
+            val fixed = list.map { if (it.id.isEmpty()) it.copy(id = nextId(c)) else it }
+            save(c, fixed)
+            return fixed
+        }
+        return list
+    }
+
+    /** Monotonic counter so an id is never reused, even after deletes. */
+    private fun nextId(c: Context): String {
+        val n = prefs(c).getInt("contact_next_id", 1)
+        prefs(c).edit().putInt("contact_next_id", n + 1).apply()
+        return "c$n"
     }
 
     fun save(c: Context, list: List<Contact>) {
@@ -71,6 +90,7 @@ object Contacts {
                     .put("english", it.english)
                     .put("number", it.number)
                     .put("ringColor", it.ringColor)
+                    .put("id", it.id)
             )
         }
         prefs(c).edit().putString(KEY, arr.toString()).apply()
@@ -91,7 +111,7 @@ object Contacts {
     /** Add a new person (gets the next colour in the palette). */
     fun add(c: Context, name: String, english: String, number: String) {
         val list = load(c).toMutableList()
-        list.add(Contact(name.trim(), english.trim(), number.trim(), PALETTE[list.size % PALETTE.size]))
+        list.add(Contact(name.trim(), english.trim(), number.trim(), PALETTE[list.size % PALETTE.size], nextId(c)))
         save(c, list)
     }
 

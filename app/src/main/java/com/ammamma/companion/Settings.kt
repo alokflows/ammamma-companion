@@ -314,4 +314,105 @@ object Settings {
 
     /** Talk companion: auto-delete chat sessions untouched for 30+ days. On by default. */
     fun chatAutoDelete(c: Context): Boolean = prefs(c).getBoolean("chat_auto_delete", true)
+
+    fun setChatAutoDelete(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean("chat_auto_delete", on).apply()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // v1.0: home-screen edit lock, day clock (hourly chime / morning heartbeat /
+    // talking alarm) and the grandpa-phone finder role.
+    // ─────────────────────────────────────────────────────────────────────────
+    private const val KEY_EDIT_LOCKED = "edit_locked"
+    private const val KEY_CHIMES_ON = "chimes_enabled"
+    private const val KEY_QUIET_START = "quiet_start_hour"   // chimes pause from this hour…
+    private const val KEY_QUIET_END = "quiet_end_hour"       // …and resume at this hour
+    private const val KEY_HEARTBEAT_ON = "heartbeat_enabled"
+    private const val KEY_HEARTBEAT_HOUR = "heartbeat_hour"
+    private const val KEY_HEARTBEAT_MIN = "heartbeat_min"
+    private const val KEY_ALARM_ON = "alarm_enabled"
+    private const val KEY_ALARM_HOUR = "alarm_hour"
+    private const val KEY_ALARM_MIN = "alarm_min"
+    private const val KEY_FINDER_ROLE = "finder_role"        // "" = Ammamma's phone, "finder" = grandpa's
+    private const val KEY_HER_NUMBER = "her_number"          // the number a finder phone texts
+
+    /** Home-screen edit lock. ON by default: long-press explains how to unlock
+     *  instead of opening the edit dialog, and the "+" add tile is hidden. */
+    fun editLocked(c: Context): Boolean = prefs(c).getBoolean(KEY_EDIT_LOCKED, true)
+
+    fun setEditLocked(c: Context, locked: Boolean) {
+        prefs(c).edit().putBoolean(KEY_EDIT_LOCKED, locked).apply()
+    }
+
+    /** Hourly Telugu chime ("సమయం N గంటలు"). On by default; silent in quiet hours. */
+    fun chimesEnabled(c: Context): Boolean = prefs(c).getBoolean(KEY_CHIMES_ON, true)
+
+    fun setChimesEnabled(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean(KEY_CHIMES_ON, on).apply()
+    }
+
+    /** Quiet hours: chimes sleep from [quietStartHour] (inclusive) to [quietEndHour]
+     *  (exclusive), wrapping midnight. Defaults 21:00–07:00. */
+    fun quietStartHour(c: Context): Int = prefs(c).getInt(KEY_QUIET_START, 21).coerceIn(0, 23)
+
+    fun quietEndHour(c: Context): Int = prefs(c).getInt(KEY_QUIET_END, 7).coerceIn(0, 23)
+
+    fun setQuietHours(c: Context, startHour: Int, endHour: Int) {
+        prefs(c).edit()
+            .putInt(KEY_QUIET_START, startHour.coerceIn(0, 23))
+            .putInt(KEY_QUIET_END, endHour.coerceIn(0, 23))
+            .apply()
+    }
+
+    /** Morning heartbeat ("good morning" at a fixed time). OFF by default until a
+     *  goodmorning clip is recorded — TTS alone would be a cold way to wake up. */
+    fun heartbeatEnabled(c: Context): Boolean = prefs(c).getBoolean(KEY_HEARTBEAT_ON, false)
+
+    fun setHeartbeatEnabled(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean(KEY_HEARTBEAT_ON, on).apply()
+    }
+
+    fun heartbeatHour(c: Context): Int = prefs(c).getInt(KEY_HEARTBEAT_HOUR, 7).coerceIn(0, 23)
+
+    fun heartbeatMinute(c: Context): Int = prefs(c).getInt(KEY_HEARTBEAT_MIN, 0).coerceIn(0, 59)
+
+    fun setHeartbeatTime(c: Context, hour: Int, minute: Int) {
+        prefs(c).edit()
+            .putInt(KEY_HEARTBEAT_HOUR, hour.coerceIn(0, 23))
+            .putInt(KEY_HEARTBEAT_MIN, minute.coerceIn(0, 59))
+            .apply()
+    }
+
+    /** Talking alarm (full-screen card + spoken line at a fixed time). Off by default. */
+    fun alarmEnabled(c: Context): Boolean = prefs(c).getBoolean(KEY_ALARM_ON, false)
+
+    fun setAlarmEnabled(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean(KEY_ALARM_ON, on).apply()
+    }
+
+    fun alarmHour(c: Context): Int = prefs(c).getInt(KEY_ALARM_HOUR, 6).coerceIn(0, 23)
+
+    fun alarmMinute(c: Context): Int = prefs(c).getInt(KEY_ALARM_MIN, 0).coerceIn(0, 59)
+
+    fun setAlarmTime(c: Context, hour: Int, minute: Int) {
+        prefs(c).edit()
+            .putInt(KEY_ALARM_HOUR, hour.coerceIn(0, 23))
+            .putInt(KEY_ALARM_MIN, minute.coerceIn(0, 59))
+            .apply()
+    }
+
+    /** "" on Ammamma's phone (normal app); "finder" on grandpa's phone, which
+     *  turns the whole app into one giant find-her-phone button. */
+    fun finderRole(c: Context): String = prefs(c).getString(KEY_FINDER_ROLE, "").orEmpty()
+
+    fun setFinderRole(c: Context, role: String) {
+        prefs(c).edit().putString(KEY_FINDER_ROLE, role.trim()).apply()
+    }
+
+    /** Ammamma's number — where a finder phone sends the code-word SMS. */
+    fun herNumber(c: Context): String = prefs(c).getString(KEY_HER_NUMBER, "").orEmpty()
+
+    fun setHerNumber(c: Context, raw: String) {
+        prefs(c).edit().putString(KEY_HER_NUMBER, raw.trim()).apply()
+    }
 }

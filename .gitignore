@@ -17,3 +17,4 @@ local.properties
 .DS_Store
 captures/
 ammamma_settings.xml
+.claude/
