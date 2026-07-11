@@ -19,6 +19,9 @@ class BootReceiver : BroadcastReceiver() {
         Log.i(TAG, "Boot/update ($action) -> restarting companion service")
         val i = Intent(context, CompanionService::class.java)
         context.startForegroundService(i)
+        // Exact alarms don't survive a reboot — re-arm the day clock right here
+        // rather than waiting for the service to come up.
+        DayScheduler.scheduleAll(context)
     }
 
     companion object {

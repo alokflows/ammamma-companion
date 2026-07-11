@@ -66,6 +66,16 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Grandpa-phone mode: this device is a FINDER for her phone, so the whole
+        // app is the one giant find-her button — home never even inflates.
+        if (Settings.finderRole(this) == "finder") {
+            startActivity(Intent(this, FinderActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION))
+            finish()
+            return
+        }
+
         setContentView(R.layout.activity_main)
 
         // Make sure the always-alive companion service is running.

@@ -54,6 +54,9 @@ class CompanionService : Service() {
         announcer = Announcer.get(applicationContext)
         battery = BatteryWatcher(announcer).also { registerReceiver(it, it.filter()) }
         armWatchdog()
+        // Day clock (chime/heartbeat/alarm) re-arms whenever the service (re)starts,
+        // so a ColorOS kill or update can never silence the clock for good.
+        DayScheduler.scheduleAll(applicationContext)
         Log.i(TAG, "Companion service started; battery watcher registered")
     }
 

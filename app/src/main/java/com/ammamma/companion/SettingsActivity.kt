@@ -562,7 +562,8 @@ class SettingsActivity : Activity() {
             num(alarmMinute, Settings.alarmMinute(this))
         )
         Settings.setHerNumber(this, herNumber.text.toString())
-        // merge: DayScheduler.scheduleAll(this)
+        // Times may have just changed — re-arm the day-clock alarms immediately.
+        DayScheduler.scheduleAll(this)
 
         Toast.makeText(this, "సేవ్ అయ్యింది · Saved", Toast.LENGTH_SHORT).show()
 
