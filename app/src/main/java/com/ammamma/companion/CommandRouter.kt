@@ -11,7 +11,8 @@ import org.json.JSONObject
 
 /**
  * Turns what Ammamma said into an ACTION. Runs the AI in "assistant" (JSON-intent)
- * mode, then resolves it ON THE PHONE: call a contact, open an app, or just chat.
+ * mode, then resolves it ON THE PHONE: call a contact/number, open an app, show a
+ * video, ask a clarifying question, or just chat.
  *
  * PRIVACY: only contact NAMES ever go to the AI. The number is looked up locally
  * and never leaves the phone.
@@ -38,30 +39,87 @@ object CommandRouter {
         "settings" to KnownApp("", null, "సెట్టింగ్స్")
     )
 
-    /** BLOCKING (network inside) — call OFF the main thread. */
-    fun resolve(context: Context, userText: String, extraContext: String?): Action {
+    // Words that, alongside a long digit run, confirm she means "dial this number"
+    // rather than reciting some unrelated number (a pin code, a price, an address).
+    private val CALL_WORDS = listOf(
+        "ఫోన్", "కాల్", "డయల్", "కలపు", "కలపండి", "నంబర్", "call", "phone", "dial"
+    )
+
+    /** BLOCKING (network inside) — call OFF the main thread.
+     *  [history] is the prior (role, content) turns of this chat session, oldest
+     *  first — passed straight through to the AI so a pending clarifying question
+     *  ("ask") has her answer land with full context on the next turn. */
+    fun resolve(
+        context: Context,
+        userText: String,
+        history: List<Pair<String, String>>,
+        extraContext: String?
+    ): Action {
+        // RAGE-BUG FIX: if she said/typed a number, dial it directly — never let the
+        // model or the fuzzy contact-matcher get a chance to reroute it to someone else.
+        extractDirectNumber(userText)?.let { number ->
+            return Action.Call(number, "$number కి ఫోన్ చేస్తున్నాను")
+        }
+
         val contacts = Contacts.load(context)
         val contactNames = contacts.map { it.name }.filter { it.isNotBlank() }
         val appNames = KNOWN.keys.toList()
 
-        val r = AiBrain.assistant(context, userText, contactNames, appNames, extraContext)
+        val r = AiBrain.assistant(context, userText, contactNames, appNames, history, extraContext)
         if (!r.ok) return Action.Say(r.text, r.detail)
 
-        val json = extractJson(r.text) ?: return Action.Say(r.text) // model just chatted plainly
+        val json = extractJson(r.text) ?: return Action.Say(r.text) // malformed JSON -> treat as plain chat
         return when (json.optString("action")) {
-            "call" -> resolveCall(context, contacts, json.optString("name"))
+            "call" -> {
+                // Model's call{number} is honored too, but local extraction (above) always wins.
+                val modelNumber = json.optString("number").filter { it.isDigit() }
+                if (modelNumber.length >= 6) Action.Call(modelNumber, "$modelNumber కి ఫోన్ చేస్తున్నాను")
+                else resolveCall(context, contacts, json.optString("name"))
+            }
             "open" -> resolveOpen(context, json.optString("app"))
+            "video" -> resolveVideo(json.optString("query"))
+            "ask" -> Action.Say(json.optString("say").ifBlank { r.text })
+            "chat" -> Action.Say(json.optString("say").ifBlank { r.text })
             else -> Action.Say(json.optString("say").ifBlank { r.text })
         }
     }
 
+    /** A digit run of 6+ (spaces/dashes allowed) that reads as a phone number she
+     *  said or typed — but only when the utterance is actually ABOUT calling: either
+     *  a call word is present, or the text is basically just the number itself. */
+    private fun extractDirectNumber(text: String): String? {
+        val run = Regex("[0-9][0-9 \\-]{4,}[0-9]").find(text)?.value ?: return null
+        val digits = run.filter { it.isDigit() }
+        if (digits.length < 6) return null
+        val hasCallWord = CALL_WORDS.any { text.contains(it, ignoreCase = true) }
+        val remainder = text.replace(Regex("[0-9 \\-]"), "").trim()
+        return if (hasCallWord || remainder.length <= 8) digits else null
+    }
+
     private fun resolveCall(context: Context, contacts: List<Contact>, name: String): Action {
         if (name.isBlank()) return Action.Say("ఎవరికి ఫోన్ చేయాలో అర్థం కాలేదు")
-        val hit = contacts.firstOrNull { it.name.equals(name, true) }
-            ?: contacts.firstOrNull { it.name.contains(name, true) || name.contains(it.name, true) }
-        val number = hit?.number?.takeIf { it.isNotBlank() } ?: lookupDeviceNumber(context, name)
-        if (number.isNullOrBlank()) return Action.Say("$name నంబర్ లేదు, ఇంట్లో వాళ్ళను అడగండి")
-        return Action.Call(number, "${hit?.name ?: name}కి ఫోన్ చేస్తున్నాను")
+
+        // 1. Exact match in her own curated face-grid contacts wins outright.
+        contacts.firstOrNull { it.name.equals(name, true) }?.let { return callAction(it.name, it.number) }
+
+        // 2. Loose (substring) match in that same small list — only dial if there's
+        //    exactly one candidate; more than one means we must ask, not guess.
+        val loose = contacts.filter { it.name.contains(name, true) || name.contains(it.name, true) }
+        if (loose.size == 1) return callAction(loose[0].name, loose[0].number)
+        if (loose.size > 1) return Action.Say("${name}కి ఫోన్ చేయాలా? ఎవరికో సరిగ్గా చెప్పండి")
+
+        // 3. Fall back to the phone's own contact book. A WEAK/AMBIGUOUS match there
+        //    (this is exactly how the old code once dialed the wrong, old contact)
+        //    must ask instead of guessing.
+        val hit = lookupDeviceNumber(context, name)
+            ?: return Action.Say("$name నంబర్ కనబడలేదు, ఇంట్లో వాళ్ళను అడగండి")
+        return if (hit.ambiguous) Action.Say("${name}కి ఫోన్ చేయాలా?")
+        else callAction(hit.displayName, hit.number)
+    }
+
+    private fun callAction(name: String, number: String): Action {
+        if (number.isBlank()) return Action.Say("$name నంబర్ లేదు, ఇంట్లో వాళ్ళను అడగండి")
+        return Action.Call(number, "${name}కి ఫోన్ చేస్తున్నాను")
     }
 
     private fun resolveOpen(context: Context, app: String): Action {
@@ -100,6 +158,15 @@ object CommandRouter {
         return Action.Say("$app ఈ ఫోన్‌లో లేదు")
     }
 
+    /** ACTION_VIEW a YouTube search — the YouTube app opens it if installed,
+     *  otherwise Android hands it to the browser automatically. */
+    private fun resolveVideo(query: String): Action {
+        if (query.isBlank()) return Action.Say("ఏమి చూపించాలో అర్థం కాలేదు")
+        val url = "https://www.youtube.com/results?search_query=${Uri.encode(query)}"
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return Action.Launch(intent, "యూట్యూబ్‌లో చూపిస్తున్నాను")
+    }
+
     private fun findInstalledByLabel(context: Context, key: String): Intent? {
         val pm = context.packageManager
         return try {
@@ -110,14 +177,30 @@ object CommandRouter {
         } catch (e: Exception) { null }
     }
 
-    /** Look up a phone number by contact display name — stays on the phone. */
-    private fun lookupDeviceNumber(context: Context, name: String): String? {
+    private data class DeviceHit(val displayName: String, val number: String, val ambiguous: Boolean)
+
+    /** Look up a phone number by contact display name — stays on the phone. If more
+     *  than one distinct person matches, [DeviceHit.ambiguous] is true so the caller
+     *  asks instead of guessing (never dial the wrong, similarly-named contact). */
+    private fun lookupDeviceNumber(context: Context, name: String): DeviceHit? {
         return try {
             val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
-            val cols = arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER)
+            val cols = arrayOf(
+                ContactsContract.CommonDataKinds.Phone.NUMBER,
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
+            )
             val sel = "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?"
             context.contentResolver.query(uri, cols, sel, arrayOf("%$name%"), null)?.use { c ->
-                if (c.moveToFirst()) c.getString(0) else null
+                var firstNumber: String? = null
+                var firstName: String? = null
+                val distinctNames = HashSet<String>()
+                while (c.moveToNext()) {
+                    val num = c.getString(0)
+                    val disp = c.getString(1)
+                    if (firstNumber == null) { firstNumber = num; firstName = disp }
+                    distinctNames.add(disp)
+                }
+                firstNumber?.let { DeviceHit(firstName ?: name, it, ambiguous = distinctNames.size > 1) }
             }
         } catch (e: Exception) {
             Log.w(TAG, "contact lookup failed", e); null

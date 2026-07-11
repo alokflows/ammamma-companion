@@ -311,4 +311,7 @@ object Settings {
     fun setAlertRepeatSeconds(c: Context, secs: Int) {
         prefs(c).edit().putInt(KEY_ALERT_REPEAT, secs.coerceIn(0, 120)).apply()
     }
+
+    /** Talk companion: auto-delete chat sessions untouched for 30+ days. On by default. */
+    fun chatAutoDelete(c: Context): Boolean = prefs(c).getBoolean("chat_auto_delete", true)
 }
