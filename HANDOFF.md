@@ -506,3 +506,38 @@ reviews, Sonnet executes in disjoint-file worktrees, emulator gauntlet before ev
 
 **Suggested first slice of v2:** C-basics (alarm/call/flashlight/Wi-Fi/time/battery) +
 A alert-screen redesign + D fallback chain. WhatsApp + browser agent after device tests.
+
+### 16-addendum (Alok, mid-session 2026-07-11 late)
+**A+. Luxury graphics:** Gemini-app-style ambient gradient glows that slowly FLOAT/drift behind
+buttons (animated RadialGradient/sweep on a low-fps ValueAnimator — cheap on GPU), Apple-luxury
+minimalism: few elements, lots of space, soft motion, satisfying press physics. This is the
+design bar for the whole v2 GUI overhaul.
+**C+. Full assistant powers — honest feasibility:**
+- Power OFF: impossible for any normal app (no API, even for device owner). Restart/reboot:
+  POSSIBLE if the app is made **Device Owner** (one-time `adb shell dpm set-device-owner` during
+  family setup — no root needed) → DevicePolicyManager.reboot() (API 24+). Device Owner also
+  unlocks: lock screen, some global settings, app pinning (kiosk!). Seriously consider DO mode —
+  a family-managed phone is exactly its use case; document an undo path.
+- Mobile data: still no public toggle API on 8.1 even for DO (test setGlobalSetting; else open
+  the exact settings screen + spoken guidance). Wi-Fi/hotspot/flashlight/alarms/calls: as §16C.
+- "Trigger everything / write everything": build as an INTENT REGISTRY — every capability is a
+  (Telugu patterns → action fn) entry; AI fallback can also emit a registry action id, so voice,
+  offline matcher, and AI all drive the same verbs. Add verbs incrementally, gauntlet each.
+**F. Custom wake word ("అమ్మమ్మ…") — implementation options (researched):**
+1. **Picovoice Porcupine** — best quality/effort: custom wake word trained on their web console
+   (no audio collection), tiny offline model, Android SDK, ~1 line to run in our foreground
+   service. Costs: a dependency + free-tier license key + per-device limits. Prototype ~1 day.
+2. **Vosk** (open-source offline STT): run tiny model (~50 MB) in continuous keyword-spotting
+   mode. No license, fully offline; heavier on 2 GB RAM, needs tuning to avoid false wakes.
+3. **DIY continuous SpeechRecognizer loop** — NOT recommended: battery hungry, Google throttles
+   always-on mic for 3rd-party apps, unreliable on ColorOS.
+   Constraints for ANY option: hold AudioRecord in CompanionService, RELEASE the mic instantly
+   on PHONE_STATE ringing/offhook (caller announce + calls need it), mute-switch aware, and
+   measure battery on the real Oppo for a full day before shipping. Verdict: feasible;
+   Porcupine = fastest path, Vosk = no-fee path; both break the zero-dependency rule — that's a
+   deliberate v2 decision, worth it if wake word is the doorway to the whole assistant.
+**Emulator finding (this session):** this AVD's DNS hangs forever (hostname lookups never
+return; IP ping fine) → HomeWeather fetch thread blocked >15 min, latch held. Hardened with
+try/finally on the latch (committed). HttpURLConnection timeouts do NOT cover DNS — remember
+this for every future network feature. Weather tile behavior on the real phone should be fine;
+verify during Alok's install.

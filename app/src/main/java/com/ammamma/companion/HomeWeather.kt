@@ -63,8 +63,7 @@ object HomeWeather {
         }
         if (!fetching.compareAndSet(false, true)) return   // one fetch at a time
         Thread {
-            val r = fetch()
-            fetching.set(false)
+            val r = try { fetch() } finally { fetching.set(false) }
             if (r != null) {
                 cached = r
                 fetchedAt = SystemClock.elapsedRealtime()
