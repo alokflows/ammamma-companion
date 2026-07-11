@@ -592,3 +592,10 @@ now (in-flight), next (thinking) — so any account can continue mid-flight. Nev
    studio voice OFFLINE at zero runtime cost; family recordings still override; only dynamic text
    (AI replies, caller names, weather) stays on Google TTS + new voice picker. Script name idea:
    tools/make_clips. Wake word: see §16-F (Porcupine fastest, Vosk free) — unchanged, next session.
+**STITCH progress (live):** SIRI+CAM+VOICE merged to master ✅ build passes. Conflicts resolved:
+Settings.kt kept HEAD TTS block; SIRI's cherry-picks were STALE STUBS of Finder/RecorderActivity
+(took ours); manifest deduped Wi-Fi perms + kept Recorder/Finder/CameraSend all three. Remaining:
+merge LUX + CLIP when they land, bundle neural clips (tools/make_clips, edge-tts te-IN-ShrutiNeural
+PROVEN: 47KB mp3/2 sentences, venv in session scratchpad), lean self-run smoke (NO gauntlet agent —
+usage at 20%), release v1.1 (versionCode 11). If session dies: branches worktree-agent-a43392435e5899eca
+(LUX) + worktree-agent-a279c50e9ced7419e (CLIP) may hold uncommitted/committed work — check before redoing.
