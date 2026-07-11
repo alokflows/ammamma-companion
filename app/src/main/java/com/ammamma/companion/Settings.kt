@@ -415,4 +415,33 @@ object Settings {
     fun setHerNumber(c: Context, raw: String) {
         prefs(c).edit().putString(KEY_HER_NUMBER, raw.trim()).apply()
     }
+
+    // --- Voice (v1.1): which TTS voice speaks, and how ---
+    private const val KEY_TTS_VOICE = "tts_voice"   // Voice.name; "" = auto (pickBestTeluguVoice)
+    private const val KEY_TTS_RATE = "tts_rate"     // percent, 50..150; 92 = today's 0.92f
+    private const val KEY_TTS_PITCH = "tts_pitch"   // percent, 50..150
+
+    fun ttsVoiceName(c: Context): String = prefs(c).getString(KEY_TTS_VOICE, "").orEmpty()
+
+    fun setTtsVoiceName(c: Context, name: String) {
+        prefs(c).edit().putString(KEY_TTS_VOICE, name.trim()).apply()
+    }
+
+    fun ttsRate(c: Context): Float =
+        prefs(c).getInt(KEY_TTS_RATE, 92).coerceIn(50, 150) / 100f
+
+    fun setTtsRatePercent(c: Context, pct: Int) {
+        prefs(c).edit().putInt(KEY_TTS_RATE, pct.coerceIn(50, 150)).apply()
+    }
+
+    fun ttsRatePercent(c: Context): Int = prefs(c).getInt(KEY_TTS_RATE, 92).coerceIn(50, 150)
+
+    fun ttsPitch(c: Context): Float =
+        prefs(c).getInt(KEY_TTS_PITCH, 100).coerceIn(50, 150) / 100f
+
+    fun setTtsPitchPercent(c: Context, pct: Int) {
+        prefs(c).edit().putInt(KEY_TTS_PITCH, pct.coerceIn(50, 150)).apply()
+    }
+
+    fun ttsPitchPercent(c: Context): Int = prefs(c).getInt(KEY_TTS_PITCH, 100).coerceIn(50, 150)
 }

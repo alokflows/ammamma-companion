@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- Offline voice commands: "Wi-Fi ఆన్ చెయ్" (setWifiEnabled still legal at targetSdk 27). -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+
     <!-- Foreground service keeps the companion alive on ColorOS, which kills
          ordinary background apps aggressively. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
