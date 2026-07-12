@@ -269,11 +269,17 @@ class RecorderActivity : Activity() {
         runCatching { r.release() }
 
         if (save && captured && key != null && tempFile.length() > 0) {
-            ClipStore.delete(this, key)
-            tempFile.copyTo(ClipStore.targetFile(this, key), overwrite = true)
-            // The morning heartbeat rides on this clip: real voice = on.
-            if (key == "goodmorning") Settings.setHeartbeatEnabled(this, true)
-            Toast.makeText(this, "సేవ్ అయింది ✔ · Saved", Toast.LENGTH_SHORT).show()
+            try {
+                // Reuse the import path's atomic install (rename within internal storage
+                // never needs extra space) so a full phone can't force-close the save.
+                ClipStore.commitImport(this, key, tempFile, "m4a")
+                // The morning heartbeat rides on this clip: real voice = on.
+                if (key == "goodmorning") Settings.setHeartbeatEnabled(this, true)
+                Toast.makeText(this, "సేవ్ అయింది ✔ · Saved", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.w(TAG, "Recording save failed — storage full?", e)
+                Toast.makeText(this, "సేవ్ కాలేదు · ఫోన్‌లో చోటు లేదు", Toast.LENGTH_LONG).show()
+            }
         }
         tempFile.delete()
         refreshAll()

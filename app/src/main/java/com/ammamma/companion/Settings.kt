@@ -444,4 +444,18 @@ object Settings {
     }
 
     fun ttsPitchPercent(c: Context): Int = prefs(c).getInt(KEY_TTS_PITCH, 100).coerceIn(50, 150)
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CRASH-SAFE VOLUME STASH. raiseVolume() saves her original media volume in
+    // memory only; if the process is killed mid-announcement that save is lost
+    // and STREAM_MUSIC stays at max. Mirrored here to disk so the next app start
+    // can put her level back. -1 = nothing stashed.
+    // ─────────────────────────────────────────────────────────────────────────
+    private const val KEY_STASHED_MUSIC_VOLUME = "stashed_music_volume"
+
+    fun stashedMusicVolume(c: Context): Int = prefs(c).getInt(KEY_STASHED_MUSIC_VOLUME, -1)
+
+    fun setStashedMusicVolume(c: Context, v: Int) {
+        prefs(c).edit().putInt(KEY_STASHED_MUSIC_VOLUME, v).apply()
+    }
 }

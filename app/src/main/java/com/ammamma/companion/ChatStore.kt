@@ -155,7 +155,13 @@ object ChatStore {
         (dir(context).listFiles { f -> f.extension == "json" } ?: return 0).forEach { f ->
             val old = try {
                 JSONObject(f.readText()).optLong("updatedAt", Long.MAX_VALUE) < cutoff
-            } catch (e: Exception) { false }
+            } catch (e: Exception) {
+                // Unreadable/truncated (e.g. a write that hit a full disk) — it can never
+                // be parsed to prove its age, so drop it instead of leaking it forever.
+                Log.w(TAG, "Corrupt chat ${f.name} — removing", e)
+                if (f.delete()) removed++
+                false
+            }
             if (old && f.delete()) removed++
         }
         if (removed > 0) Log.i(TAG, "Pruned $removed old chat(s)")

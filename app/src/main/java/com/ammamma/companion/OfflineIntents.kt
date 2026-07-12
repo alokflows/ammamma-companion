@@ -286,9 +286,29 @@ object OfflineIntents {
             if (cal.timeInMillis <= now.timeInMillis) cal.add(Calendar.DAY_OF_YEAR, 1)
             return cal
         }
-        if (hourRaw >= 12) return nextOccurrence(at(hourRaw.coerceAtMost(23)))
-        val isAm = text.contains("ఉదయం") || text.contains("పొద్దున")
-        val isPm = text.contains("మధ్యాహ్నం") || text.contains("సాయంత్రం") || text.contains("రాత్రి")
+        // Digit input like "18:00" already carries a real 24h hour — use as-is.
+        if (hourRaw in 13..23) return nextOccurrence(at(hourRaw))
+
+        val morning = text.contains("ఉదయం") || text.contains("పొద్దున")
+        val noonWord = text.contains("మధ్యాహ్నం")
+        val evening = text.contains("సాయంత్రం")
+        val night = text.contains("రాత్రి") || text.contains("అర్ధరాత్రి")
+
+        // 12 o'clock is its own case: it means noon OR midnight, never 12+12.
+        if (hourRaw == 12) {
+            return when {
+                noonWord -> nextOccurrence(at(12))          // మధ్యాహ్నం పన్నెండు = noon
+                morning || night -> nextOccurrence(at(0))   // రాత్రి/ఉదయం పన్నెండు = midnight
+                else -> {
+                    val noon = nextOccurrence(at(12)); val mid = nextOccurrence(at(0))
+                    if (mid.timeInMillis <= noon.timeInMillis) mid else noon
+                }
+            }
+        }
+
+        // Hours 1..11: night/evening/noon-word all mean the PM reading (h+12).
+        val isAm = morning
+        val isPm = noonWord || evening || night
         return when {
             isAm -> nextOccurrence(at(hourRaw))
             isPm -> nextOccurrence(at(hourRaw + 12))

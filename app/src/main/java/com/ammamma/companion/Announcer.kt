@@ -69,6 +69,17 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
 
     init {
         createEngine()
+        recoverStashedVolume()
+    }
+
+    /** If a previous run raised the media volume for a spoken line and was killed
+     *  before it could restore, put her level back now — before we announce anything. */
+    private fun recoverStashedVolume() {
+        val stashed = Settings.stashedMusicVolume(context)
+        if (stashed >= 0) {
+            runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, stashed, 0) }
+            Settings.setStashedMusicVolume(context, -1)
+        }
     }
 
     /** Create (or re-create) the TTS engine. Safe to call repeatedly. */
@@ -371,7 +382,11 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
     private fun raiseVolume(important: Boolean) {
         // Save her level ONCE per burst of speech; overlapping lines must not stack
         // saves (which would later restore to an already-raised value).
-        if (savedVolume < 0) savedVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        if (savedVolume < 0) {
+            savedVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+            // Stash to disk too: if ColorOS kills us mid-line, next start restores it.
+            Settings.setStashedMusicVolume(context, savedVolume)
+        }
         val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         val target = if (important) {
             max
@@ -391,6 +406,7 @@ class Announcer private constructor(private val context: Context) : TextToSpeech
         if (savedVolume >= 0) {
             runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, savedVolume, 0) }
             savedVolume = -1
+            Settings.setStashedMusicVolume(context, -1)   // cleanly restored — no crash-stash needed
         }
     }
 
