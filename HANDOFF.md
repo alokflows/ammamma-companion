@@ -771,16 +771,18 @@ Telegram bot → private family group (instant silent SOS push) AND Apps Script 
 fan-out). SMS text + live-location always go offline regardless; only PHOTOS use these channels
 (queue → send when back online). WP-SOS builds both photo-delivery legs.
 
-**IN FLIGHT:**
-- **WP-FAMILY dispatched** (Sonnet, isolated worktree) — the single-source-of-truth family model +
-  beautiful Settings family manager. Architecture LOCKED by orchestrator: extend the existing
-  `Contact` (it already has stable `id`, `faces/<id>.jpg` photos, JSON persistence) with 4 flags
-  `isFamily/getsSos/smsControl/videoCall` (optBoolean migration; existing numbered contacts migrate
-  to isFamily+getsSos=true — they ARE family the user added; strangers never enter this list). New
-  `FamilyActivity` (GlowBackdrop+Press LUX language) with per-member photo + permission pills +
-  add/edit/delete; one launch button in SettingsActivity. Key deliverable = query helpers
-  `Contacts.family/sosRecipients/smsControllers/videoTiles(ctx)` that WP-SOS/WP-VIDEO/photo-dial all
-  call. NOT a parallel list — reuses the dial list. Awaiting agent report (build must pass).
+**WP-FAMILY ✅ MERGED to master (`de31286`, pushed).** Single-source-of-truth family manager.
+`Contact` extended with 4 flags `isFamily/getsSos/smsControl/videoCall` (optBoolean migration: pre-v1.2
+numbered contacts become isFamily+getsSos=true — they ARE family the user added; empty seed rows stay
+out; no re-migration once saved). New `FamilyActivity` (GlowBackdrop+Press LUX): per-member photo
+(Faces reuse, decode off UI thread, process-death-safe pending-id), 3 quick permission pills +
+full add/edit form, delete cleans face+caller-clip, every dead-end SPEAKS a Telugu hint. Launch button
+in Settings. **KEY DELIVERABLE — the helpers dependent WPs call:**
+`Contacts.family(ctx)`, `Contacts.sosRecipients(ctx)` (isFamily&&getsSos&&number), `smsControllers(ctx)`,
+`videoTiles(ctx)`; plus `addFull(...)→id`, `updateFull(id,...)`, `removeById(id)`. Orchestrator reviewed
+the full diff line-by-line — no defects; build verified green in the worktree. NOT a parallel list —
+reuses the dial list, so MainActivity photo-dial keeps working. **Emulator UI smoke of FamilyActivity
+is DEFERRED to the pre-v1.2-release gauntlet** (compile verified; screen not yet run on the AVD).
 
 **WP-PRIORITY diagnosis DONE (orchestrator, item G — Alok's "MOST important" reliability ask).**
 Root-cause read of CompanionService.kt + AndroidManifest: the 3 standard levers are present
@@ -826,11 +828,22 @@ and understand her (she is NOT dumb — don't build for a dummy). Design LOCKED:
 Favorite-channels list from Alok is now OPTIONAL (helps the AI disambiguate her Telugu names, not needed
 for offline mapping).
 
-**NEXT (orchestrator plan):** await WP-FAMILY → review diff line-by-line → build → merge. Then Phase 2
-in disjoint worktrees: WP-PRIORITY (spec above), WP-MED (reuse AlertActivity+repeat engine +
-DayScheduler + OfflineIntents Telugu time-parser; full-screen repeating card w/ Taken+Snooze),
-WP-OPEN (parametric open-the-thing, extends OfflineIntents/CommandRouter). Phase 3 (depend on
-WP-FAMILY): WP-SOS (power×3 + home button → continuous location + front/back photos + alarm + SMS to
-`sosRecipients`; Telegram+email photo legs), WP-VIDEO (WhatsApp video tiles from `videoTiles`),
-WP-UI continuous Apple-flawless pass. Emulator gauntlet + `gh release list` before tagging v1.2
-(versionCode 12).
+**NEXT — PAUSED for usage cap (2026-07-12). Fresh session resumes here, foundation is IN.** WP-FAMILY
+done+merged; WP-PRIORITY diagnosed with a ready spec (above); WP-OPEN redesigned (above). Dispatch
+Phase 2 in disjoint worktrees (Sonnet, self-contained specs):
+- **WP-PRIORITY** — spec in this §20 (stopWithTask=false; new AliveReceiver on USER_PRESENT +
+  POWER_CONNECTED/DISCONNECTED → startForegroundService; last-alive timestamp pref shown in Settings;
+  THREAD_PRIORITY_URGENT_AUDIO on speech). Touches manifest + Settings — now clear of WP-FAMILY.
+- **WP-MED** — reuse AlertActivity + repeat engine + DayScheduler + OfflineIntents Telugu time-parser
+  (bug #2 noon/midnight fix already landed); full-screen repeating talking card w/ Taken + Snooze;
+  voice-set in Talk + manual set; recurring + one-off; reboot-safe.
+- **WP-OPEN** — ONLINE intelligence-first "do the thing": AiBrain parses Telugu → JSON action;
+  PackageManager capability detect (music app → play there via MEDIA_PLAY_FROM_SEARCH, else YouTube
+  play-direct); speak Telugu confirmation; real-device deep-link test. (Offline-open dropped.)
+Then Phase 3 (depend on WP-FAMILY helpers): **WP-SOS** (power×3 + home button → continuous location +
+front/back photos + alarm + SMS to `Contacts.sosRecipients`; photo legs = Telegram bot + Apps Script
+email, Alok chose BOTH), **WP-VIDEO** (WhatsApp video tiles from `Contacts.videoTiles`), **WP-UI**
+continuous Apple-flawless pass (esp. Settings — kill generic gradient buttons). Emulator gauntlet
+(incl. FamilyActivity UI smoke deferred here) + `gh release list` before tagging **v1.2** (versionCode
+12 / "1.2"). Stale v1.0/v1.1 agent worktrees still registered — harmless; can `git worktree prune` +
+remove them for tidiness.
