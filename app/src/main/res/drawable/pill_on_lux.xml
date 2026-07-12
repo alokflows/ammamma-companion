@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WP-LUX: a family-flag pill toggle in its ON state (FamilyActivity's SOS /
+     SMS / Video row). Filled with the same green used for "good/on" states
+     elsewhere (ink_accent_green), small pill radius. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/ripple_dark">
+    <item android:id="@android:id/mask">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFFFF" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/ink_accent_green" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+</ripple>

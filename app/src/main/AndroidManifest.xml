@@ -103,6 +103,14 @@
             android:screenOrientation="portrait"
             android:exported="false" />
 
+        <!-- Family manager: decide who's linked family, who gets the SOS blast,
+             who can send SMS commands, and who gets a video-call tile. Reached
+             from Settings only. -->
+        <activity
+            android:name=".FamilyActivity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
+
         <!-- Recorder Studio: the family records real-voice clips for every spoken
              line (greetings, chimes, callers). Reached from Settings only. -->
         <activity
