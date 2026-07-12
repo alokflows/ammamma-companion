@@ -807,9 +807,24 @@ also unlocks kiosk/lock-task). BLOCKED by his charge-only cable (needs USB data)
 hardening now; Device Owner = an optional "if you get a data cable" upgrade, NOT a now-fix. Flagged to
 Alok, non-blocking.
 
-**ASKED Alok (non-blocking):** her list of favorite YouTube channels/apps to hard-map for instant
-offline "open the specific thing" (WP-OPEN §19-A). WP-OPEN ships a general YouTube-search deep-link now;
-folds her named targets in when he replies.
+**WP-OPEN REDESIGNED (Alok, this session) — "do the thing" is an ONLINE, INTELLIGENCE-FIRST engine,
+NOT an offline keyword list.** Alok's exact intent: the engine must be genuinely intelligent/proactive
+and understand her (she is NOT dumb — don't build for a dummy). Design LOCKED:
+- The AI brain (AiBrain, online) PARSES her free Telugu utterance into a structured action
+  (play_music / open_channel / open_app / search / ...), tolerant of any phrasing. Free models are
+  text-only → prompt the model to emit a small JSON action; orchestrator writes the exact prompt.
+- CAPABILITY-AWARE via PackageManager: for "play <song>" detect installed music apps (YouTube Music
+  com.google.android.apps.youtube.music, Spotify com.spotify.music, JioSaavn com.jio.media.jiobeats,
+  Gaana com.gaana, Wynk, etc.). If one exists → play there (try MediaStore
+  `INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH` w/ EXTRA_MEDIA_TITLE so it plays directly); if NONE → open
+  **YouTube and play directly** (search deep-link, best-effort first-result play). Adapt to HER phone.
+- ONLINE (needs internet — YouTube/streaming can't work offline, Alok confirmed). Offline "open"
+  matching is DROPPED for now (may return later). Device actions (time/battery/torch/Wi-Fi/alarm) stay
+  offline in OfflineIntents; only CONTENT/OPEN goes through this new online resolver.
+- Always speak a Telugu confirmation of what it's doing; never dead-end silently. Deep-link intents are
+  version-fragile → REAL-DEVICE test required (brief already flagged this).
+Favorite-channels list from Alok is now OPTIONAL (helps the AI disambiguate her Telugu names, not needed
+for offline mapping).
 
 **NEXT (orchestrator plan):** await WP-FAMILY → review diff line-by-line → build → merge. Then Phase 2
 in disjoint worktrees: WP-PRIORITY (spec above), WP-MED (reuse AlertActivity+repeat engine +
