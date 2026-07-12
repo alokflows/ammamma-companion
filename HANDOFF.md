@@ -652,3 +652,110 @@ mid-session; default model switched to Opus 4.8. Kept all execution on Sonnet ag
 Recorder Studio with family to record the real voices (his LAST step). No dev work remains for v1.1.
 
 **NEXT SESSION = v1.2** (see §16 / QUEUED above). Nothing blocks it.
+
+## 19. v1.2 MASTER BRIEF — written 2026-07-12 by Fable at Alok's dictation, FOR THE NEXT CLAUDE
+
+**Read this ENTIRE section before touching code. Alok dictated these decisions in the session that
+shipped v1.1, then closed the terminal so a fresh session builds v1.2. This is his grandmother's phone
+and he is emotionally invested ("I'm really full of emotions"). Match that care. You and the previous
+Claude are ONE continuous team — this section is us handing the baton, not a status report.**
+
+### How Alok works (PERMANENT rules — obey without being re-told)
+- **Agent economy:** YOU (Fable) orchestrate — triage, read code, write specs, stitch merges, run the
+  release, all cheap and context-keeping. Spawn **Sonnet** to EXECUTE clear specs. Spawn Opus ONLY for
+  genuine architecture. Usage is scarce (a Fable-5 limit was hit last session). Before any spawn, check
+  disk state of prior partial work so nothing is redone. Keep every spec self-contained so a dead agent
+  is replaceable by a fresh one on the same worktree. NEVER burn tokens implementing yourself.
+- **Respect her:** never design as if grandma is a dummy. Show REAL info (%, health, ETA, times) big and
+  clear AND speak it aloud. Every dead-end speaks a helpful Telugu line — never fail silently.
+- **Handoff discipline:** update this HANDOFF after EVERY finished task (done shas / now / next). Never
+  batch to session end.
+- **UI IS THE PRODUCT SHE SEES.** She sees no code, no text — only the UI. It must be Apple-flawless:
+  beautiful, intuitive, dear to the heart. Even Settings buttons must NOT be generic olden-day gradient
+  buttons — refined, proper, consistent with the WP-LUX luxury language. **Alok will WATCH the emulator
+  live while you test UI** — boot `ammamma_oppo` and let him see it before he judges. Design→code is ONE
+  loop that Claude owns end to end.
+- **Co-edited repo:** Gemini/Antigravity also push here. ALWAYS `gh release list` before tagging. Keystore
+  + creds at repo root (gitignored): `ammamma-release.keystore`, `keystore.properties`, storePassword/
+  keyPassword `ammamma2026`, alias `ammamma`. Version is at **versionCode 11 / "1.1"** → next is 12 / "1.2".
+  Package is **com.ammamma.companion**. Emulator gotchas: `adb emu power status charging` (ac on alone =
+  NOT_CHARGING); Telugu text can't go via `adb shell input text` (use ADBKeyboard IME broadcast); check
+  `voice_muted` pref before any audio test.
+
+### Alok's LOCKED decisions for v1.2 (from this session — do NOT re-ask these)
+
+**A. Voice "open the specific thing" — HIS #1 EFFORT, the soul of it.**
+She speaks Telugu and the phone opens/does the SPECIFIC thing — e.g. "open <X> YouTube channel" / "play
+<song>". Offline pattern-match FIRST (extend OfflineIntents), AI intelligence for the fuzzy match, then
+deep-link into the target app (YouTube channel/search intent, etc.). Generalize past fixed verbs to
+parametric "open <named target>". Ship a general YouTube-search deep-link + a couple examples now; ASK
+Alok for her list of favorite channels/apps to hard-map for instant offline opening.
+
+**B. Medicine reminders.**
+- SET = BOTH. Primary VOICE in the Talk tab ("రోజూ పొద్దున 8కి మందు" → parsed → set → confirmed in
+  Telugu). Backup MANUAL type-and-send in the bar. Automation-first. Reuse the Telugu time-word parser in
+  OfflineIntents.alarmCalendar (and note bug #2's 12-o'clock fix already landed).
+- ALERT when due = **full-screen talking card that REPEATS ~30s until dismissed** (like alarm/battery
+  cards): big 💊 photo, speaks in family/neural voice, **"తీసుకున్నా / Taken" button AND a SNOOZE button**
+  (Alok added snooze). Reuse AlertActivity + the alert-repeat engine.
+- Recurring (daily) + one-off; survives reboot (DayScheduler, already Doze-proof via setExactAndAllowWhileIdle).
+
+**C. SOS / emergency — "everybody linked gets it, and it should be FULL".**
+- TRIGGER = BOTH: (1) **power button ×3 fast** from anywhere incl. lock screen — feasible by counting
+  rapid ACTION_SCREEN_ON/OFF in CompanionService; VERIFY on ColorOS. (2) a **big SOS button on home**.
+- PAYLOAD to EVERY linked family member = ALL FOUR: **continuous live location** (keeps updating, not a
+  one-shot pin) + **front & back camera photos** (silent capture) + **loud alarm on her phone** (max) +
+  **alert text to all family numbers** (SMS, works offline).
+- Only EXPLICITLY LINKED family get it (see D).
+
+**D. Family members = explicit, linked, SINGLE SOURCE OF TRUTH (Alok stressed hard).**
+- A proper, BEAUTIFUL Settings screen to ADD family members: name + number + photo + role/permissions.
+  "We should specially link the family members — do NOT simply consider someone else as family."
+- This one linked list feeds EVERYTHING: photo-dial home faces, WhatsApp video tiles, SOS recipients,
+  SMS-control allow-list. Per-member flags: gets-SOS, can-control-by-SMS, video-call.
+
+**E. Family remote control by SMS (extends find-my-phone).**
+- A LINKED family member texts a command → the app acts while it's active. Confirmed: **remote photo** —
+  SMS command → silent front/back camera capture → delivered to family (so "if something happens, we get
+  to know"). Base = the existing find-phone-by-codeword SMS receiver; guard by linked-family-number + code
+  word. Keep the existing find-phone scream command too.
+
+**F. WhatsApp video tiles:** big face buttons on home → one tap → start a WhatsApp VIDEO call to that
+linked person (WhatsApp video deep-link). One tap, no menus.
+
+**G. CPU / PROCESS PRIORITY — Alok's "MOST important" reliability ask.**
+The app sometimes just STOPS because ColorOS deprioritizes/kills it. He wants OS-level priority, always
+alive. HARDEN and find the REAL cause (don't just re-tell setup steps): confirm CompanionService is a true
+ongoing foreground service with correct notification importance; verify START_STICKY + onTaskRemoved
+resurrection + the 15-min watchdog actually fire on ColorOS; Process.setThreadPriority on work threads;
+reconfirm SETUP_PHONE.md ColorOS steps (auto-start, battery-whitelist, lock-in-recents). Investigate why
+it still dies on the real device and fix the cause.
+
+### THE ONE OPEN DECISION — ASK ALOK FIRST THING NEXT SESSION
+**How to DELIVER photos (SOS front/back + SMS-triggered) to family?** WhatsApp CANNOT be auto-sent by a
+normal app (confirmed, dropped in v0.6 — a photo can't reach WhatsApp without her tapping send). Needs
+internet either way. Options:
+- **RECOMMENDED: Telegram bot → a private family group.** Instant push, free, zero user interaction, and
+  Alok already runs Telegram bots (Zilla, LLM-Wiki). Family joins one group; SOS photos + live-location
+  links land instantly.
+- **Apps Script email relay** (the already-planned TRAVEL_EMAIL.md pattern): app POSTs photo → emails all
+  family. Reaches everyone but email is slower to be noticed in an emergency.
+- SMS text + live-location ALWAYS go offline regardless; only PHOTOS need one of the above (queue → send
+  when back online). Get his pick before building the photo-delivery path.
+
+### v1.2 WORK PACKAGES (disjoint file ownership — Sonnet in parallel where safe)
+- **WP-FAMILY** — family manager model + beautiful Settings UI; the single source of truth. Do FIRST;
+  WP-SOS/WP-VIDEO/photo-dial depend on it.
+- **WP-MED** — medicine reminders (voice+manual set; full-screen repeating talking card w/ Taken+Snooze;
+  DayScheduler recurring + one-off).
+- **WP-SOS** — power×3 + home-button trigger; continuous location + photos + alarm + SMS to linked family;
+  SMS remote-photo command (waits on the delivery-channel decision for the photo leg only).
+- **WP-OPEN** — parametric "open the specific thing" voice (YouTube deep-links + target mapping).
+- **WP-VIDEO** — WhatsApp video-call tiles on home.
+- **WP-UI** — the Apple-flawless pass, Settings especially (kill generic gradient buttons; extend WP-LUX
+  everywhere). CONTINUOUS, not one-shot — hold every screen to his bar; he watches the emulator.
+- **WP-PRIORITY** — process-priority / never-dies hardening (item G).
+
+### Still pending from Alok (human step, unchanged)
+Install **v1.1** on the Oppo per SETUP_PHONE.md, then record family voices in Recorder Studio (his LAST
+step). v1.2 dev does NOT block on this.
