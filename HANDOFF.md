@@ -619,3 +619,39 @@ WP-LUX (luxury GUI — see merge result line above; if aborted, merge branch wor
 5. Real-device: Alok installs v1.1 per SETUP_PHONE.md, runs Recorder Studio with family (his last step).
 **QUEUED v1.2:** wake word (§16-F, Porcupine), WhatsApp video-call tiles, Device-Owner powers (§16-addendum),
 medicine reminders + SOS (§16-E). Everything else in §16.
+
+## 18. v1.1 prep from CLOUD session (2026-07-12) — branch `claude/cloud-core-mobile-capability-8r1wxs`
+
+Alok continued from his phone in a Claude Code CLOUD container (Linux, no emulator, no keystore —
+signed release + smoke test stay on the Mac by design). Orchestrator (Fable) + 2 parallel Sonnet
+agents did the mechanical work per Alok's economy rules:
+
+**DONE in this session (all on the cloud branch above, NOT master):**
+- versionCode 11 / versionName "1.1" bumped in `app/build.gradle.kts`.
+- **NEW `tools/make_clips.sh`** — one command generates all 33 bundled studio clips
+  (`edge-tts --voice te-IN-ShrutiNeural --rate=-8%`) into `app/src/main/assets/clips/<key>.mp3`.
+  Keys: home_greeting, talk_greeting, goodmorning, charger_connected, charger_removed,
+  battery_full, battery_low, found_phone, alarm, hour_0..23. Hour lines use Telugu number
+  words + ClipCatalog's day-part words (ఒంటి గంట for 1 o'clock). caller_* deliberately absent
+  (family records those in Recorder Studio). Idempotent: skips valid existing files, validates
+  size (>5 KB), retries once. Creates its own venv at tools/.ttsenv (gitignore it if it annoys).
+- HANDOFF §18 (this section).
+
+**BLOCKED in the cloud container (both confirmed org egress-policy 403s — NOT bugs, do not
+retry in cloud):** `speech.platform.bing.com` (edge-tts synthesis) and `dl.google.com`
+(Android SDK + AGP/maven artifacts). So clips could not be generated NOR the tree compiled
+here; two Sonnet agents dispatched for these correctly fail-fast-stopped. Cloud sessions in
+this environment can do code work but cannot build or reach TTS — plan accordingly.
+
+**REMAINING for the Mac session ("read handoff and continue" — in order):**
+1. `git fetch origin && git merge origin/claude/cloud-core-mobile-capability-8r1wxs`
+   into master (cloud session pushes only its own branch).
+2. `./tools/make_clips.sh` → 33 mp3s appear in assets/clips → `git add` + commit them.
+3. `./gradlew assembleDebug` + §17 step 3 emulator smoke: cold-start greeting speaks (VOICE
+   moved initDone in onInit — watch pendingText regression), one offline verb ("టైం ఎంత" in
+   Talk, no key), chime demo plays the Shruti mp3 not TTS (clear emulator test clips
+   hour_18/goodmorning first — §15 leftovers), Recorder file-import one mp3, LUX screens eyeball.
+4. assembleRelease (keystore on Mac) → `gh release list` FIRST (co-edited repo) →
+   `gh release create v1.1` with family-facing notes → mark §18 SHIPPED.
+5. Real device: install v1.1 per SETUP_PHONE.md, run Recorder Studio with family (Alok's
+   last step by design).
