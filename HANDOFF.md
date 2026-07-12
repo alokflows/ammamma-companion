@@ -619,3 +619,36 @@ WP-LUX (luxury GUI — see merge result line above; if aborted, merge branch wor
 5. Real-device: Alok installs v1.1 per SETUP_PHONE.md, runs Recorder Studio with family (his last step).
 **QUEUED v1.2:** wake word (§16-F, Porcupine), WhatsApp video-call tiles, Device-Owner powers (§16-addendum),
 medicine reminders + SOS (§16-E). Everything else in §16.
+
+## 18. v1.1 RELEASED (2026-07-12) — the §17 checklist is now CLOSED
+
+**Session: Fable orchestrated, Sonnet executed (Alok's agent-economy rule). Fable-5 usage limit was hit
+mid-session; default model switched to Opus 4.8. Kept all execution on Sonnet agents.**
+
+**DONE (all pushed to master, origin ahead resolved):**
+- Clips bundled: `77667f1` — 33 te-IN-ShrutiNeural mp3s (rate -8%) in app/src/main/assets/clips/ for
+  home_greeting, talk_greeting, goodmorning, charger_connected/removed, battery_full/low, found_phone,
+  alarm, hour_0..23 (hour texts = ClipCatalog hourlySpecs hints verbatim; caller_* skipped). 524KB total.
+  Emulator smoke PASSED (Sonnet): cold-start greeting plays home_greeting clip (WP-VOICE initDone
+  regression did NOT occur), chime + low-batt demos play Shruti mp3 not TTS, offline "టైం ఎంత" answered
+  with no AI key, Recorder Studio opens with catalog rows. Real pkg = com.ammamma.companion (brief's
+  com.example.* was wrong). AVD gotcha reconfirmed: `adb emu power status charging`; Telugu can't go via
+  `adb shell input text` — used ADBKeyboard IME broadcast.
+- Full read-only bug audit (Sonnet): merge of the 5 WP branches left NO stitch damage (verified). Found
+  4 real bugs; ALL fixed in `8322c51`:
+  1. RecorderActivity.stopRecording — unguarded copyTo force-closed on full storage → now uses
+     ClipStore.commitImport (atomic rename, no ENOSPC) in try/catch + Telugu "no space" toast.
+  2. OfflineIntents.alarmCalendar — hour 12 always resolved to NOON, midnight unreachable → 12 handled
+     as its own noon-vs-midnight case; digits 13..23 pass through as 24h; 1..11 unchanged.
+  3. ChatStore.pruneOlderThan — corrupt JSON was skipped forever (leak) → catch now deletes it.
+  4. Announcer volume — media stream could stick at MAX if killed mid-line → savedVolume now stashed to
+     Settings (stashedMusicVolume, dflt -1) on raise, cleared on restore, recovered in Announcer init.
+- Version bump `6e0e841`: versionCode 11 / "1.1".
+- assembleRelease → signed APK 1.26MB (bigger than v1.0's 740KB = the 33 clips), verified signer
+  CN=Ammamma Companion. **RELEASED: github.com/alokflows/ammamma-companion/releases/tag/v1.1** (gh
+  release list checked first — co-edited repo, no collision).
+
+**NOT DONE — Alok's ONE human step (unchanged):** install v1.1 on the Oppo per SETUP_PHONE.md, then run
+Recorder Studio with family to record the real voices (his LAST step). No dev work remains for v1.1.
+
+**NEXT SESSION = v1.2** (see §16 / QUEUED above). Nothing blocks it.
