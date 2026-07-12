@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WP-LUX: the family manager. Same ink backdrop + ambient GlowBackdrop as Home,
+     one luminous card per person (built in code from Contacts.load — same
+     pattern as MainActivity's face grid), quick SOS/SMS/Video pill toggles per
+     card, and a big gradient "add family member" CTA pinned at the bottom of
+     the scroll. Family-only screen, reached from Settings. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ink_bg">
+
+    <com.ammamma.companion.ui.GlowBackdrop
+        android:id="@+id/glow"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:id="@+id/familyRoot"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="18dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="28dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="true"
+                android:text="కుటుంబం"
+                android:textColor="@color/ink_text"
+                android:textSize="32sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="20dp"
+                android:includeFontPadding="true"
+                android:text="· Family"
+                android:textColor="@color/ink_text_dim"
+                android:textSize="15sp" />
+
+            <!-- One card per person, built in code (see FamilyActivity.buildCard). -->
+            <LinearLayout
+                android:id="@+id/listContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- Big LUX gradient CTA, same visual family as Home's "మాట్లాడు" button. -->
+            <LinearLayout
+                android:id="@+id/addButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:background="@drawable/btn_talk"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingVertical="20dp"
+                android:elevation="0dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:includeFontPadding="true"
+                    android:text="＋ కుటుంబ సభ్యుడిని జోడించు"
+                    android:textColor="#FFF4E8"
+                    android:textSize="19sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+</FrameLayout>

@@ -155,6 +155,13 @@ class SettingsActivity : Activity() {
             })
         }
 
+        // Family manager: link who's really family, and their SOS/SMS/video flags.
+        findViewById<Button>(R.id.familyManager).setOnClickListener {
+            startActivity(Intent(this, FamilyActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+            })
+        }
+
         // Home edit lock: locked = grandma can't accidentally change people.
         findViewById<Switch>(R.id.editLockSwitch).apply {
             isChecked = Settings.editLocked(this@SettingsActivity)
