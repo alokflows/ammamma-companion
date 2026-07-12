@@ -759,3 +759,63 @@ internet either way. Options:
 ### Still pending from Alok (human step, unchanged)
 Install **v1.1** on the Oppo per SETUP_PHONE.md, then record family voices in Recorder Studio (his LAST
 step). v1.2 dev does NOT block on this.
+
+## 20. v1.2 BUILD — LIVE session state (2026-07-12, fresh session executing §19)
+
+**Model note:** Fable-5 unavailable this session → orchestrating on Opus 4.8, executing on Sonnet
+(agent-economy rule intact). Repo at `0c13446` (master, v1.1, clean tree). Old merged worktrees from
+v1.0/v1.1 still registered (harmless; new WPs use fresh isolated worktrees).
+
+**DECISION CAPTURED (Alok, this session):** THE ONE OPEN DECISION (§19 photo delivery) = **BOTH** —
+Telegram bot → private family group (instant silent SOS push) AND Apps Script email relay (backup
+fan-out). SMS text + live-location always go offline regardless; only PHOTOS use these channels
+(queue → send when back online). WP-SOS builds both photo-delivery legs.
+
+**IN FLIGHT:**
+- **WP-FAMILY dispatched** (Sonnet, isolated worktree) — the single-source-of-truth family model +
+  beautiful Settings family manager. Architecture LOCKED by orchestrator: extend the existing
+  `Contact` (it already has stable `id`, `faces/<id>.jpg` photos, JSON persistence) with 4 flags
+  `isFamily/getsSos/smsControl/videoCall` (optBoolean migration; existing numbered contacts migrate
+  to isFamily+getsSos=true — they ARE family the user added; strangers never enter this list). New
+  `FamilyActivity` (GlowBackdrop+Press LUX language) with per-member photo + permission pills +
+  add/edit/delete; one launch button in SettingsActivity. Key deliverable = query helpers
+  `Contacts.family/sosRecipients/smsControllers/videoTiles(ctx)` that WP-SOS/WP-VIDEO/photo-dial all
+  call. NOT a parallel list — reuses the dial list. Awaiting agent report (build must pass).
+
+**WP-PRIORITY diagnosis DONE (orchestrator, item G — Alok's "MOST important" reliability ask).**
+Root-cause read of CompanionService.kt + AndroidManifest: the 3 standard levers are present
+(foreground+START_STICKY, onTaskRemoved 1.5s resurrection alarm, 15-min inexact watchdog) and
+CallReceiver/FindPhoneReceiver already resurrect on call/SMS. Real, code-actionable gaps found →
+WP-PRIORITY spec (dispatch AFTER WP-FAMILY merges — both touch manifest + SettingsActivity, keep
+ownership disjoint):
+1. `CompanionService` lacks `android:stopWithTask="false"` → survives task-swipe only via the 1.5s
+   kill→restart gap. Add it (survive swipe directly).
+2. Too few resurrection wake-vectors. After a ColorOS **force-stop**, alarms + STICKY are cleared →
+   ONLY a system broadcast can revive. Today: BOOT/PACKAGE_REPLACED + call/SMS. Add manifest receivers
+   (still fire on API 27) for `USER_PRESENT` (every unlock) + `ACTION_POWER_CONNECTED/DISCONNECTED`
+   (every plug) → each a free heartbeat that `startForegroundService(CompanionService)`. New
+   `AliveReceiver` or extend BootReceiver.
+3. No death visibility (charge-only cable = no logcat). Persist a "last-alive" timestamp each
+   watchdog tick + onStartCommand; show in Settings ("companion alive Xm ago") → turns his real-device
+   reports into data.
+4. `Process.setThreadPriority(THREAD_PRIORITY_URGENT_AUDIO)` on the speech path (Announcer) — minor
+   anti-stutter.
+5. Reconfirm SETUP_PHONE.md ColorOS steps (auto-start, battery-whitelist, lock-in-recents).
+**HONEST CEILING (for Alok):** after a hard ColorOS force-stop, NOTHING in-app can win — true never-kill
+needs **Device Owner** (one-time `adb shell dpm set-device-owner` during setup → DevicePolicyManager,
+also unlocks kiosk/lock-task). BLOCKED by his charge-only cable (needs USB data). So: ship the in-app
+hardening now; Device Owner = an optional "if you get a data cable" upgrade, NOT a now-fix. Flagged to
+Alok, non-blocking.
+
+**ASKED Alok (non-blocking):** her list of favorite YouTube channels/apps to hard-map for instant
+offline "open the specific thing" (WP-OPEN §19-A). WP-OPEN ships a general YouTube-search deep-link now;
+folds her named targets in when he replies.
+
+**NEXT (orchestrator plan):** await WP-FAMILY → review diff line-by-line → build → merge. Then Phase 2
+in disjoint worktrees: WP-PRIORITY (spec above), WP-MED (reuse AlertActivity+repeat engine +
+DayScheduler + OfflineIntents Telugu time-parser; full-screen repeating card w/ Taken+Snooze),
+WP-OPEN (parametric open-the-thing, extends OfflineIntents/CommandRouter). Phase 3 (depend on
+WP-FAMILY): WP-SOS (power×3 + home button → continuous location + front/back photos + alarm + SMS to
+`sosRecipients`; Telegram+email photo legs), WP-VIDEO (WhatsApp video tiles from `videoTiles`),
+WP-UI continuous Apple-flawless pass. Emulator gauntlet + `gh release list` before tagging v1.2
+(versionCode 12).
